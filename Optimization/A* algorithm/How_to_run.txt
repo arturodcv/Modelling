@@ -1,0 +1,11 @@
+To run the A* algorithm you must have the 'spain.csv' in your working directory. First compile an execute these: 
+
+gcc -g -Wall -o write_bin Write_bin.c -lm
+
+write_bin
+
+Then compile and execute these and choose the options you are given: 
+
+gcc -g -Wall -o Astar_main Astar_main.c Astar_functions -lm -O3
+
+Astar_main
