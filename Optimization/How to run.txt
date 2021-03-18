@@ -1,0 +1,3 @@
+To run execute the following command
+
+  gcc -g -Wall -O3 -o main main.c my_functions.c RKF78.c read_data.c -lm
