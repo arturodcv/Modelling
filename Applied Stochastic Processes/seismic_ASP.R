@@ -33,7 +33,7 @@ dist_data = num_data[,c(11,6)]
 #############################MAP
 ################################
 
-register_google(key = "AIzaSyC4TejqvRFWKSGaTIJFsFrGTOpbqeb1AdQ")
+register_google(key = "") #you may need to generate a key for yourselve, mine is private
 japan.map = get_map(location = c(lon = 138.077031, lat = 35.801589 ),
                     maptype = "satellite", zoom = 5)
 
