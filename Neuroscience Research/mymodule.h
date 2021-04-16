@@ -19,6 +19,17 @@
  *  along with NEST.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
+ 
+ 
+ //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+ //
+ // Module created by Arturo del Cerro in order to replicate the work shown in 
+ //'A Neurodynamical Model of Brightness Induction in V1' by Olivier Penacchio, 
+ // Xavier Otazu and Laura Dempere-Marco.
+ //
+ // This module is GNU General Public License.
+ //
+ //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifndef MYMODULE_H
 #define MYMODULE_H
@@ -28,6 +39,7 @@
 #include "topology_parameter.h"
 #include "slifunction.h"
 #include "slimodule.h"
+#include <math.h>
 
 // Put your stuff into your own namespace.
 namespace mynest
@@ -123,42 +135,53 @@ public:
   double raw_value(const nest::Position<2>& pos, librandom::RngPtr&) const
     { 
 	double theta_1,theta_2,theta_aux,beta,dist,exp_,angle,orientation_1,orientation_2;
-        double pi = atan(1)*4;
+        double pi = M_PI; 
 	double euler = exp(1.0);
 
-	angle = atan(( pos[1] / pos[0] ));
+	angle = atan2( pos[1], pos[0]);
+
+
+
         orientation_1 = orientation_i;
 	orientation_2 = orientation_j;
+
 
 	if (orientation_1 < 0.0){orientation_1 = orientation_1 + pi;}
 	if (orientation_2 < 0.0){orientation_2 = orientation_2 + pi;}
 
-	theta_1 = abs(orientation_1 - angle);
-        theta_2 = abs(orientation_2 - angle);
+ 
+	theta_1 = fabs(orientation_1 - angle);
+  theta_2 = fabs(orientation_2 - angle);
 
-	if (abs(theta_1) > pi/2){ theta_1 = -(theta_1 - pi) ;}
-        if (abs(theta_2) > pi/2){ theta_2 = -(theta_2 - pi) ;}
+	if (fabs(theta_1) > pi/2){ theta_1 = -(theta_1 - pi) ;}
+        if (fabs(theta_2) > pi/2){ theta_2 = -(theta_2 - pi) ;}  
+
 	if (theta_1 <= - pi/2) { theta_1 = -theta_1  ;}
         if (theta_2 <= - pi/2) { theta_2 = -theta_2  ;}
+
         
-    	if (abs(theta_1) > abs(theta_2)){
+    	if (fabs(theta_1) > fabs(theta_2)){
         	theta_aux = theta_2;
         	theta_2 = theta_1;
         	theta_1 = theta_aux;
 	}
+
 	
-	beta = 2 * ( abs(theta_1) + sin ( abs ( theta_1 + theta_2 )));
+	beta = 2 * ( fabs(theta_1) + sin ( fabs ( theta_1 + theta_2 )));
+
 
 	dist = sqrt( pow(pos[1],2) + pow(pos[0],2) ) * rows_;
+
 	
 
 	if ( (dist > 0.0 && dist <= 10.0 && beta < pi/2.69) || (
-	   ( (dist > 0.0 && dist <= 10.0 && beta < pi/1.1) && (abs(theta_1) < pi/5.9)) && (abs(theta_2) < pi/5.9) )){
+	   ( (dist > 0.0 && dist <= 10.0 && beta < pi/1.1) && (fabs(theta_1) < pi/5.9)) && (fabs(theta_2) < pi/5.9) )){
+
          	exp_ = - pow( beta / dist , 2)  - 2 * pow ( beta / dist,7) - pow( dist , 2) / 90;
-		//printf("J %f \n",kappa * pow( euler , exp_) );
+		
 		return  kappa * pow( euler , exp_);}
 
-	else {  return 0.0;}
+	else { return 0.0;}
     }
 
   nest::TopologyParameter * clone() const
@@ -192,10 +215,12 @@ public:
                    librandom::RngPtr&) const
     { 
 	double theta_1,theta_2,theta_aux,beta,dist,exp_1,exp_2,angle,orientation_1,orientation_2;
-        double pi = atan(1)*4;
+        double pi = M_PI;
 	double euler = exp(1.0);
 
-	angle = atan(( pos[1] / pos[0]));
+
+	angle = atan2( pos[1], pos[0]);
+
 
         orientation_1 = orientation_i;
 	orientation_2 = orientation_j;
@@ -203,41 +228,41 @@ public:
 	if (orientation_1 < 0.0){orientation_1 = orientation_1 + pi;}
 	if (orientation_2 < 0.0){orientation_2 = orientation_2 + pi;}
 
-	double theta_diff = abs(orientation_1 - orientation_2);
+	double theta_diff = fabs(orientation_1 - orientation_2);
 	if (orientation_1 > pi/2 ){
-		if (abs(orientation_1 - orientation_2 - pi) < theta_diff){ theta_diff = abs(orientation_1 - orientation_2 - pi);}
+		if (fabs(orientation_1 - orientation_2 - pi) < theta_diff){ theta_diff = fabs(orientation_1 - orientation_2 - pi);}
 	}
 	if (orientation_2 > pi/2 ){
-		if (abs(orientation_1 - orientation_2 + pi) < theta_diff){ theta_diff = abs(orientation_1 - orientation_2 + pi);}
+		if (fabs(orientation_1 - orientation_2 + pi) < theta_diff){ theta_diff = fabs(orientation_1 - orientation_2 + pi);}
 	}
 
 	if (theta_diff >= pi){theta_diff = theta_diff - pi;}
 	
-	theta_1 = abs(orientation_1 - angle);
-        theta_2 = abs(orientation_2 - angle);
+	theta_1 = fabs(orientation_1 - angle);
+        theta_2 = fabs(orientation_2 - angle);
 
 
-	if (abs(theta_1) > pi/2){ theta_1 = -(theta_1 - pi) ;}
-        if (abs(theta_2) > pi/2){ theta_2 = -(theta_2 - pi) ;}
+	if (fabs(theta_1) > pi/2){ theta_1 = -(theta_1 - pi) ;}
+        if (fabs(theta_2) > pi/2){ theta_2 = -(theta_2 - pi) ;}
 	if (theta_1 <= - pi/2) { theta_1 = -theta_1  ;}
         if (theta_2 <= - pi/2) { theta_2 = -theta_2  ;}
         
-    	if (abs(theta_1) > abs(theta_2)){
+    	if (fabs(theta_1) > fabs(theta_2)){
         	theta_aux = theta_2;
         	theta_2 = theta_1;
         	theta_1 = theta_aux;
 	}
 	
-	beta = 2*(abs(theta_1) + sin(abs(theta_1+theta_2)));
+	beta = 2*(fabs(theta_1) + sin(fabs(theta_1+theta_2)));
 
 	dist = sqrt(pow(pos[1],2) + pow(pos[0],2)) * rows_;
 
-	if ((dist < 1.0 || dist >= 10.0 || beta < pi / 1.1) || abs(theta_diff) >= pi/3 || abs(theta_1) < pi / 11.999){
+	if ((dist < 0.1 || dist >= 10.0 || beta < pi / 1.1) || fabs(theta_diff) >= pi/3 || fabs(theta_1) < pi / 11.999){
 		return 0.0;}
 	else {
 		exp_1 = -0.4 * pow( beta / dist , 1.5);
         	exp_2 = -pow( theta_diff / (pi / 4) , 1.5);
-		//printf("W %f \n", kappa * ( 1 - pow( euler , exp_1) ) * pow( euler , exp_2));
+	
         	return kappa * ( 1 - pow( euler , exp_1) ) * pow( euler , exp_2);
 	}
     }
@@ -251,28 +276,9 @@ private:
 
 
 
-
-
-
-
 } // namespace mynest
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
