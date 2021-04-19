@@ -17,65 +17,13 @@ import pickle
 from nest_values import *
 from funciones   import *
 
-################################################## Data Treatment ################################################################
-create_folder(sd_path); #remove_contents(sd_path)
-create_folder(df_folder); #remove_contents(df_folder)
-create_folder(positions_path); #remove_contents(positions_path)
-
-files = glob('*spike_detector*')
-for file in files:
-    shutil.move(file, sd_path + '/' + file)
-
-files = glob('*positions-*')
-for file in files:
-    shutil.move(file, positions_path + '/' + file)
-
-files = glob(positions_path + '/*')
-pos = []
-for file in files:
-    positions = pd.read_table(file,names = ['Number','x_pos','y_pos'], index_col=False, sep = ' ')
-    pos.append(positions)
-  
-positions = pd.concat(pos)
-del(pos)
-
-to_record_layer = open("to_record_layer.pkl", "rb")
-layers_to_record = pickle.load(to_record_layer)
-to_record_layer.close()
-
-with open('to_record_sd.pkl', 'rb') as f:
-      spike_detectors = pickle.load(f)
-
-print('Fixing the data...')
-t = time.time()
-for layer,j in zip(layers_to_record,range(0,len(layers_to_record))):
-    data = []
-    for i in range(0,total_num_virtual_procs): 
-        spk_number = str(i)
-        if total_num_virtual_procs > 9 and i < 10:
-            spk_number = str(0) + spk_number
-        name = sd_path + '/spike_detector-' + str(spike_detectors[j][0]) + '-' + spk_number + '.gdf'
-        df = pd.read_table(name,names = ['Number','Time'], index_col=False)
-        data.append(df)
-    data = pd.concat(data)
-    data = data.set_index(([pd.Index([i for i in range(0,len(data))])]))
-    data['Number'] = data.Number.astype(float)
-    data = pd.merge(data,positions,how = 'left',on = 'Number' )
-    
-    #Save dataframe
-    data.to_pickle(df_folder + '/data_' + str(layer) +'.pkl')
-    print('Numero de spikes ' +str(layer)+': '+str(len(data)))
-del(data)
-del(positions)
-print('Tiempo tratamiento de datos: '+str(time.time() - t))
-
 
 #################################################### Read data ###################################################################
 #Read dataframe
-#data = pd.read_pickle(df_folder + "/data_l_parrots.pkl")
-data = pd.read_pickle(df_folder + "/data_l_exc_0_on.pkl")
-#data = pd.read_pickle(df_folder + "/data_l_inh_0_on.pkl")
+orientation_to_read = 0.0
+exc_or_inh = 'exc'
 
+data = pd.read_pickle(df_folder + '/data_l_' + exc_or_inh + '_' + str(orientation_to_read) + '.pkl')
 data = data.sort_values(by=['Time'])
 data = data.set_index([pd.Index([i for i in range(len(data))])])
 
