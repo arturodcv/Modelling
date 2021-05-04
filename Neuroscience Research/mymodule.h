@@ -121,61 +121,45 @@ class PlosOne_J: public nest::TopologyParameter
 public:
   PlosOne_J(const DictionaryDatum& d):
     TopologyParameter(d),
-    rows_(1.0),
+    max_dist_(1.0),
     kappa(1.0),
     orientation_i(0.0),
-    orientation_j(0.0)
+    orientation_j(0.0),
+    rescale(1.0)
     {
-      updateValue<double>(d, "rows", rows_);
+      updateValue<double>(d, "max_dist", max_dist_);
       updateValue<double>(d, "kappa", kappa);
       updateValue<double>(d, "orientation_i", orientation_i);
       updateValue<double>(d, "orientation_j", orientation_j);	
+      updateValue<double>(d, "rescale", rescale);	
     }
 
   double raw_value(const nest::Position<2>& pos, librandom::RngPtr&) const
     { 
-	double theta_1,theta_2,theta_aux,beta,dist,exp_,angle,orientation_1,orientation_2;
+	double theta_1,theta_2,theta_aux,beta,dist,exp_,angle;
         double pi = M_PI; 
 	double euler = exp(1.0);
 
-	angle = atan2( pos[1], pos[0]);
+	angle = atan( pos[1] / pos[0]);
 
+	theta_1 = angle - orientation_i; theta_2 = angle - orientation_j;
 
-
-        orientation_1 = orientation_i;
-	orientation_2 = orientation_j;
-
-
-	if (orientation_1 < 0.0){orientation_1 = orientation_1 + pi;}
-	if (orientation_2 < 0.0){orientation_2 = orientation_2 + pi;}
-
- 
-	theta_1 = fabs(orientation_1 - angle);
-  theta_2 = fabs(orientation_2 - angle);
-
-	if (fabs(theta_1) > pi/2){ theta_1 = -(theta_1 - pi) ;}
-        if (fabs(theta_2) > pi/2){ theta_2 = -(theta_2 - pi) ;}  
-
-	if (theta_1 <= - pi/2) { theta_1 = -theta_1  ;}
-        if (theta_2 <= - pi/2) { theta_2 = -theta_2  ;}
+	if (fabs(theta_1) > pi/2){ if (theta_1 < 0.0){theta_1 = theta_1 + pi;}
+				   else {theta_1 = theta_1 - pi;}}
+	if (fabs(theta_2) > pi/2){ if (theta_2 < 0.0){theta_2 = theta_2 + pi;}
+				   else {theta_2 = theta_2 - pi;}}
 
         
     	if (fabs(theta_1) > fabs(theta_2)){
         	theta_aux = theta_2;
         	theta_2 = theta_1;
-        	theta_1 = theta_aux;
-	}
+        	theta_1 = theta_aux;}
 
-	
-	beta = 2 * ( fabs(theta_1) + sin ( fabs ( theta_1 + theta_2 )));
+	beta = 2 * ( fabs(theta_1) + sin ( fabs ( theta_1) + fabs(theta_2 )));
+	dist = sqrt( pow(pos[1],2) + pow(pos[0],2) ) * rescale;
 
-
-	dist = sqrt( pow(pos[1],2) + pow(pos[0],2) ) * rows_;
-
-	
-
-	if ( (dist > 0.0 && dist <= 10.0 && beta < pi/2.69) || (
-	   ( (dist > 0.0 && dist <= 10.0 && beta < pi/1.1) && (fabs(theta_1) < pi/5.9)) && (fabs(theta_2) < pi/5.9) )){
+	if ( (dist > 0.0 && dist <= max_dist_ && beta < pi/2.69) || (
+	   ( (dist > 0.0 && dist <= max_dist_ && beta < pi/1.1) && (fabs(theta_1) < pi/5.9)) && (fabs(theta_2) < pi/5.9) )){
 
          	exp_ = - pow( beta / dist , 2)  - 2 * pow ( beta / dist,7) - pow( dist , 2) / 90;
 		
@@ -188,7 +172,7 @@ public:
     { return new PlosOne_J(*this); }
 
 private:
-  double rows_,kappa, orientation_i, orientation_j;
+  double max_dist_,kappa, orientation_i, orientation_j,rescale;
 };
 
 
@@ -199,15 +183,17 @@ class PlosOne_W: public nest::TopologyParameter
 public:
   PlosOne_W(const DictionaryDatum& d):
     TopologyParameter(d),
-    rows_(1.0),
+    max_dist_(1.0),
     orientation_i(0.0),
     orientation_j(0.0),
-    kappa(1.0)
+    kappa(1.0),
+    rescale(1.0)
     {
-      updateValue<double>(d, "rows", rows_);
+      updateValue<double>(d, "max_dist", max_dist_);
       updateValue<double>(d, "orientation_i", orientation_i);
       updateValue<double>(d, "orientation_j", orientation_j);
       updateValue<double>(d, "kappa", kappa);
+      updateValue<double>(d, "rescale", rescale);
     }
 
 
@@ -218,11 +204,7 @@ public:
         double pi = M_PI;
 	double euler = exp(1.0);
 
-
-	angle = atan2( pos[1], pos[0]);
-
-
-        orientation_1 = orientation_i;
+  	orientation_1 = orientation_i;
 	orientation_2 = orientation_j;
 	
 	if (orientation_1 < 0.0){orientation_1 = orientation_1 + pi;}
@@ -236,28 +218,26 @@ public:
 		if (fabs(orientation_1 - orientation_2 + pi) < theta_diff){ theta_diff = fabs(orientation_1 - orientation_2 + pi);}
 	}
 
-	if (theta_diff >= pi){theta_diff = theta_diff - pi;}
-	
-	theta_1 = fabs(orientation_1 - angle);
-        theta_2 = fabs(orientation_2 - angle);
+	angle = atan(pos[1]/pos[0]);
 
+	theta_1 = angle - orientation_i; theta_2 = angle - orientation_j;
 
-	if (fabs(theta_1) > pi/2){ theta_1 = -(theta_1 - pi) ;}
-        if (fabs(theta_2) > pi/2){ theta_2 = -(theta_2 - pi) ;}
-	if (theta_1 <= - pi/2) { theta_1 = -theta_1  ;}
-        if (theta_2 <= - pi/2) { theta_2 = -theta_2  ;}
-        
-    	if (fabs(theta_1) > fabs(theta_2)){
+	if (fabs(theta_1) > pi/2){if (theta_1 > 0.0){theta_1 = theta_1 - pi;}
+				  else {theta_1 = theta_1 + pi;}}
+	if (fabs(theta_2) > pi/2){if (theta_2 > 0.0){theta_2 = theta_2 - pi;}
+				  else {theta_2 = theta_2 + pi;}}
+
+  if (fabs(theta_1) > fabs(theta_2)){
         	theta_aux = theta_2;
         	theta_2 = theta_1;
         	theta_1 = theta_aux;
 	}
 	
-	beta = 2*(fabs(theta_1) + sin(fabs(theta_1+theta_2)));
+	beta = 2*(fabs(theta_1) + sin(fabs(theta_1)+fabs(theta_2)));
 
-	dist = sqrt(pow(pos[1],2) + pow(pos[0],2)) * rows_;
+	dist = sqrt(pow(pos[1],2) + pow(pos[0],2)) * rescale ;
 
-	if ((dist < 0.1 || dist >= 10.0 || beta < pi / 1.1) || fabs(theta_diff) >= pi/3 || fabs(theta_1) < pi / 11.999){
+	if ((dist < 0.001 || dist >= max_dist_ || beta < pi / 1.1) || fabs(theta_diff) >= pi/3 || fabs(theta_1) < pi / 11.999){
 		return 0.0;}
 	else {
 		exp_1 = -0.4 * pow( beta / dist , 1.5);
@@ -271,7 +251,7 @@ public:
     { return new PlosOne_W(*this); }
 
 private:
-  double rows_, orientation_i, orientation_j, kappa;
+  double max_dist_, orientation_i, orientation_j, kappa,rescale;
 };
 
 

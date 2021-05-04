@@ -45,22 +45,18 @@ spike_detectors = load_dict('to_record_sd')
 print('Fixing the data...')
 t = time.time()
 spike_detectors = list(spike_detectors.values())
-files = glob('spk_detectors_folder/*')
-for layer,j in zip(layers_to_record,range(0,len(layers_to_record))):
+for layer, spk in zip(layers_to_record,spike_detectors):
+
     data = []
-    for i in range(0,total_num_virtual_procs): 
-        spk_number = str(i)
-        if total_num_virtual_procs > 9 and i < 10:
-            spk_number = str(0) + spk_number
-            
-        spk_file_number = str(spike_detectors[j][0])
-        while len(files[0][files[0].index('-')+1:files[0].rindex('-')]) > len(spk_file_number):
-            spk_file_number = str(0) + spk_file_number
-            
-        name = sd_path + '/spike_detector-' + spk_file_number + '-' + spk_number + '.gdf'
-        
-        df = pd.read_table(name,names = ['Number','Time'], index_col=False)
+    num_layer = layers_to_record[layer][0]
+    files = glob('spk_detectors_folder/spike_detector-' + str(spk[0]) + '-*')
+    if files == []:
+        files = glob('spk_detectors_folder/spike_detector-' + '0' + str(spk[0]) + '-*')
+    for spk_detector in files:
+
+        df = pd.read_table(spk_detector,names = ['Number','Time'], index_col=False)
         data.append(df)
+    
     data = pd.concat(data)
     data = data.set_index(([pd.Index([i for i in range(0,len(data))])]))
     data['Number'] = data.Number.astype(float)
@@ -69,6 +65,7 @@ for layer,j in zip(layers_to_record,range(0,len(layers_to_record))):
     #Save dataframe
     data.to_pickle(df_folder + '/data_' + str(layer) +'.pkl')
     print('Numero de spikes ' +str(layer)+': '+str(len(data)))
+    
 del(data)
 del(positions)
 print('Tiempo tratamiento de datos: '+str(time.time() - t))
