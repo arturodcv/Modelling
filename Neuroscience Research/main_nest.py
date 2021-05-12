@@ -22,7 +22,6 @@ from nest_values import *
 from funciones   import *
 
 
-
 ########################################################### Nest ###################################################################
 
 nest.ResetKernel()
@@ -36,14 +35,19 @@ nest.CopyModel("izhikevich","inh", FS_dict)
 
 ################################################################# Main ################################################################## 
 
-result, poiss_layers = main_all_orientations(num_orientations)
+layers, poiss_layers = main_all_orientations(num_orientations)
 print("All layers succesfully connected!")
 
 ############################################################## Simulation ################################################################
 
-input_files = [input_images_path + '/sinusoide_' + str(int(i * 180 / 4) ) + '.png' for i in range(0,4)]
-num_images_to_simulate = len(input_files)
+#input_files = [input_images_path + '/sinusoide_' + str(int(i * 180 / num_images_to_simulate) ) + '.png' for i in range(0,num_images_to_simulate)]
+#input_files = [input_images_path + '/gaussian.png' ]
+input_files = [input_images_path + '/sinusoide_0.png' ]
 
+
+create_folder(gabor_folder)
+remove_contents(gabor_folder)
+ 
 t = time.time()
 for i in range(0,num_images_to_simulate):
     set_poisson_values(input_files[i], poiss_layers, num_orientations)
@@ -54,9 +58,9 @@ print('tiempo de simulacion: ', time.time() - t)
 
 layers_to_record = {}
 spike_detectors = {}
-for i in result:
-    layers_to_record.update(dict(list(result[i].items())[:2]))
-    spike_detectors.update(dict(list(result[i].items())[2:]))
+for i in layers:
+    layers_to_record.update(dict(list(layers[i].items())[:2]))
+    spike_detectors.update(dict(list(layers[i].items())[2:]))
     
 save_dict(layers_to_record,'to_record_layer')
 save_dict(spike_detectors,'to_record_sd')

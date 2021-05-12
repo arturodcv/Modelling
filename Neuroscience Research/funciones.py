@@ -44,6 +44,7 @@ def create_sin2d(size,freq,a,b):
             array[i][j] =  math.sin( 2*math.pi*freq*(a*i+b*j) )
     return array
 
+
 ##################################################### Gabor ####################################################################
 
 def gabor_filter(K_size,Lambda, Theta, Sigma, Gamma, Psi, mode):
@@ -72,18 +73,21 @@ def apply_filter(gray_img, K_size, Lambda, Theta, Sigma, Gamma, Psi, mode):
     
 def gabor(gray_img,orientation_in_radians, mode):
     output = np.zeros((gray_img.shape[0],gray_img.shape[1]), dtype=np.float32) 
-    #orientation = (90 - orientation_in_radians)*math.pi/180
-    orientation = orientation_in_radians*math.pi/180
-    output = apply_filter(gray_img, K_size=K_size, Lambda=Lambda, Theta=orientation, Sigma=Sigma, Gamma=Gamma,Psi = Psi, mode = mode )
-    output = np.clip(output, 0, np.max(output))
+    #orientation_ = (90 - orientation_in_radians)*math.pi/180
+    orientation_ = orientation_in_radians*math.pi/180
+    output = apply_filter(gray_img, K_size=K_size, Lambda=Lambda, Theta=orientation_, Sigma=Sigma, Gamma=Gamma,Psi = Psi, mode = mode )
+    output = np.clip(output, 0, max(0,np.max(output)))
     return output
 
 ########################################################### Nest ###################################################################
 
-def input_treatment(input_spike,x_cortex_size,y_cortex_size):
+def input_treatment(input_spike,x_cortex_size,y_cortex_size,orientation):
     input_as_img = Image.fromarray(input_spike)
     input_resized = input_as_img.resize((x_cortex_size,y_cortex_size), resample = Image.NEAREST  )
-    input_norm = np.divide(input_resized,1) * 1 ## cambiar
+    #input_norm = np.divide(input_resized,1) * 1 ## cambiar
+    input_norm = np.divide(input_resized,np.max(input_resized)) * 100
+    plt.imshow(input_norm);plt.colorbar() ; plt.title("max = " + str(np.max(input_norm)))
+    plt.savefig(gabor_folder + '/gabor_' + str(orientation) + '_' + str(np.max(np.round(input_norm,0))) + '_.png'); plt.close('all')
     input_transposed = input_norm.transpose()
     input_as_list = input_transposed.tolist()
     flat_list = [item for sublist in input_as_list for item in sublist]
@@ -93,8 +97,9 @@ def main_img(img,orientation):
     img = cv2.imread(img)
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
     output_gabor = gabor(gray_img,orientation,'on')
-    output_gabor = output_gabor[cut_pixels:-cut_pixels,cut_pixels:-cut_pixels]
-    flat_list = input_treatment(output_gabor,x_cortex_size,y_cortex_size)
+    if cut_pixels != 0:
+        output_gabor = output_gabor[cut_pixels:-cut_pixels,cut_pixels:-cut_pixels]
+    flat_list = input_treatment(output_gabor,x_cortex_size,y_cortex_size,orientation)
     return flat_list
     
 def main_create():
@@ -110,9 +115,9 @@ def main_one_orientation(orientation):
     l_exc,l_inh,sd_exc,sd_inh,l_poiss = main_create()
     main_self_connections(l_exc,l_inh,sd_exc,sd_inh,l_poiss ,orientation)
     orientation = orientation*180 / math.pi
-    out_dict = {'l_exc_'+str(orientation): l_exc,'l_inh_'+str(orientation): l_inh,'sd_exc_'+str(orientation): sd_exc,'sd_inh_'+str(orientation): sd_inh}
+    lyrs_dict = {'l_exc_'+str(orientation): l_exc,'l_inh_'+str(orientation): l_inh,'sd_exc_'+str(orientation): sd_exc,'sd_inh_'+str(orientation): sd_inh}
     poiss_dict = {'l_poiss_'+str(orientation): l_poiss}
-    return out_dict, poiss_dict
+    return lyrs_dict, poiss_dict
 
 
 
@@ -125,19 +130,16 @@ def main_all_orientations(num_orientations):
         lyrs["orientation_" + str(orientation)], poiss["orientation"+str(orientation)] = main_one_orientation(orientation)
     for i in range(0,num_orientations):
         for j in range(0,num_orientations):
-            if i!=j:
-                #or_i = 90 - i*180/num_orientations; ##
-                or_i = i*180/num_orientations;
-                #or_j = 90 - j*180/num_orientations;  ##
-                or_j = j*180/num_orientations;
-                l_exc_i = lyrs['orientation_'+str(or_i)]['l_exc_'+str(or_i)]
-                l_exc_j = lyrs['orientation_'+str(or_j)]['l_exc_'+str(or_j)]
-                l_inh_i = lyrs['orientation_'+str(or_i)]['l_inh_'+str(or_i)]
-                l_inh_j = lyrs['orientation_'+str(or_j)]['l_inh_'+str(or_j)]
+            #or_i = 90 - i*180/num_orientations; ##
+            or_i = i*180/num_orientations;
+            #or_j = 90 - j*180/num_orientations;  ##
+            or_j = j*180/num_orientations;
+            l_exc_i = lyrs['orientation_'+str(or_i)]['l_exc_'+str(or_i)]
+            l_inh_i = lyrs['orientation_'+str(or_i)]['l_inh_'+str(or_i)]
+            l_exc_j = lyrs['orientation_'+str(or_j)]['l_exc_'+str(or_j)]
+            l_inh_j = lyrs['orientation_'+str(or_j)]['l_inh_'+str(or_j)]
                 
-
-                #main_lat_connections(l_exc_i,l_exc_j,l_inh_i,l_inh_j,math.pi/2 - i*math.pi/num_orientations,math.pi/2 - j*math.pi/num_orientations) 
-                main_lat_connections(l_exc_i,l_exc_j,l_inh_i,l_inh_j,i*math.pi/num_orientations,j*math.pi/num_orientations)
+            main_lat_connections(l_exc_i,l_exc_j,l_inh_i,l_inh_j,i*math.pi/num_orientations,j*math.pi/num_orientations)
     return lyrs, poiss
 
 
@@ -147,9 +149,9 @@ def set_poisson_values(img, poiss_layers,num_orientations):
     for i in range(0,num_orientations):
         #orientation = 90 - i*180/num_orientations; ##
         orientation = i*180/num_orientations;
-        flat_list = main_img(img,orientation)
+        flat_list = main_img(img,orientation)      
+        fixed_list = [k*factor + poisson_bias for k in flat_list] 
         l_poiss = list(poiss_layers['orientation'+str(orientation)].values())[0]
-        fixed_list = [k*factor / 41 + poisson_bias for k in flat_list] ################## cuidado con el 41
         nest.SetStatus(nest.GetNodes(l_poiss)[0],'rate', fixed_list)
     
 
@@ -163,9 +165,8 @@ def create_layer(rows,columns,extent,elements,neurons_per_column):
 
 def create_lat_exc(kernel_type,kappa,orientation_i,orientation_j):
     return  {'connection_type': 'convergent',    
-             'kernel': {kernel_type: {'max_dist': float(max_dist_plosone), 'kappa': kappa,
-                                      'orientation_i': orientation_i, 'orientation_j': orientation_j }},
-             'weights': 0.2 * weight_exc,
+             'kernel': {kernel_type: {'kappa': kappa,'orientation_i': orientation_i, 'orientation_j': orientation_j, 'rescale': rescale }},
+             'weights': 0.1* 0.2 * default_synapse_weight_exc,
              'delays': {'linear':{'c':delay_exc_min,'a':slowness_exc}},
              'synapse_model': syn_model_exc,
              'allow_autapses': allow_autapses, 'allow_multapses': allow_multapses
@@ -174,10 +175,6 @@ def create_lat_exc(kernel_type,kappa,orientation_i,orientation_j):
 def main_self_connections(l_exc,l_inh,sd_exc,sd_inh,l_poiss, self_orientation):
     tp.ConnectLayers(l_poiss, l_exc, dict_poiss_to_exc)
     tp.ConnectLayers(l_poiss, l_inh, dict_poiss_to_inh)
-    tp.ConnectLayers(l_exc, l_exc, create_lat_exc('PlosOne_J',kappa_j,self_orientation,self_orientation))
-    tp.ConnectLayers(l_exc, l_inh, create_lat_exc('PlosOne_W',kappa_w,self_orientation,self_orientation))
-    tp.ConnectLayers(l_inh, l_exc, dict_lat_inh)
-    tp.ConnectLayers(l_inh, l_inh, dict_lat_inh)
     leaves_exc = nest.GetLeaves(l_exc, local_only=True)[0]
     nest.Connect(leaves_exc, sd_exc)
     leaves_inh = nest.GetLeaves(l_inh, local_only=True)[0]
@@ -185,11 +182,13 @@ def main_self_connections(l_exc,l_inh,sd_exc,sd_inh,l_poiss, self_orientation):
 
     
 def main_lat_connections(l_exc_i,l_exc_j,l_inh_i,l_inh_j,orientation_i,orientation_j): 
+    tp.ConnectLayers(l_exc_i, l_exc_j, short_range_exc)
+    tp.ConnectLayers(l_inh_i, l_inh_j, short_range_inh) 
+    tp.ConnectLayers(l_exc_i, l_inh_j, short_range_exc) 
+    tp.ConnectLayers(l_inh_i, l_exc_j, short_range_inh)
     tp.ConnectLayers(l_exc_i, l_exc_j, create_lat_exc('PlosOne_J',kappa_j,orientation_i,orientation_j))
     tp.ConnectLayers(l_exc_i, l_inh_j, create_lat_exc('PlosOne_W',kappa_w,orientation_i,orientation_j))
-    tp.ConnectLayers(l_inh_i, l_exc_j, dict_lat_inh)
-    #tp.ConnectLayers(l_inh_i, l_inh_j, dict_lat_inh) 
-    
+
     
 ############################################################## Data ###############################################################
 
@@ -206,7 +205,7 @@ def load_dict(name):
     
 ########################################################## Results ##################################################################
 
-def read__and_fix_dataframe(orientation_to_read,exc_or_inh):
+def read_and_fix_dataframe(orientation_to_read,exc_or_inh):
     data = pd.read_pickle(df_folder + '/data_l_' + exc_or_inh + '_' + str(orientation_to_read) + '.pkl')
     print("Dataframe loaded!")
     data = data.sort_values(by=['Time'])
@@ -299,8 +298,8 @@ def get_eeg(times, complementary_time_list, orientation_to_read, exc_or_inh, pat
     eeg.update({i:0 for i in complementary_time_list})
     eeg = list(OrderedDict(sorted(eeg.items())).values())
 
-    eeg_cut = eeg[100:1000]
-    plt.plot(eeg_cut); plt.title('eeg_cut 100:500');
+    eeg_cut = eeg[100:int(simulation_time)]
+    plt.plot(eeg_cut); plt.title('eeg_cut 100:' + str(int(simulation_time)));
     plt.savefig(path + '/eeg_cut_' + str(orientation_to_read) + '_' + str(exc_or_inh)+'_.png')
     plt.close('all')
 
