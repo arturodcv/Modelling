@@ -51,7 +51,7 @@ def apply_filter(gray_img, K_size, Lambda, Theta, Sigma, Gamma, Psi):
     gray = np.pad(gray_img, (K_size//2, K_size//2), 'edge')
     #gabor = gabor_filter(K_size = K_size, Lambda = Lambda, Theta = Theta, Sigma = Sigma, Gamma = Gamma, Psi = Psi)
     gabor = np.zeros((100,100)); gabor[50,50] = 1.0
-    output = fftconvolve(gray,gabor, mode = "same")
+    output = fftconvolve(gray,gabor, mode = "valid")
     return output
 
     
