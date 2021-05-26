@@ -22,6 +22,8 @@ from nest_values import *
 from funciones   import *
 
 
+
+
 ########################################################### Nest ###################################################################
 
 nest.ResetKernel()
@@ -33,26 +35,38 @@ nest.SetKernelStatus({"resolution": resolution})
 nest.CopyModel("izhikevich","exc", RS_dict)
 nest.CopyModel("izhikevich","inh", FS_dict) 
 
-################################################################# Main ################################################################## 
 
+########################################################### Image processing ####################################################################
+
+create_folder(gabor_folder); remove_contents(gabor_folder)
+create_folder(sd_path); remove_contents(sd_path)
+create_folder(df_folder); remove_contents(df_folder)
+create_folder(positions_path); remove_contents(positions_path)
+
+t = time.time()
+gabors_to_nest = full_img_filtering(images_to_simulate,num_orientations)
+gabors_time = time.time() - t
+save_gabors(gabors_to_nest, images_to_simulate,num_orientations);
+
+quit()
+
+
+############################################################  Connectivity ######################################################################
+
+t = time.time()
 layers, poiss_layers = main_all_orientations(num_orientations)
+conn_time = time.time() - t
 print("All layers succesfully connected!")
 
-############################################################## Simulation ################################################################
-
-#input_files = [input_images_path + '/sinusoide_' + str(int(i * 180 / num_images_to_simulate) ) + '.png' for i in range(0,num_images_to_simulate)]
-#input_files = [input_images_path + '/gaussian.png' ]
-input_files = [input_images_path + '/sinusoide_0.png' ]
-
-
-create_folder(gabor_folder)
-remove_contents(gabor_folder)
+############################################################## Simulation #######################################################################
  
 t = time.time()
+#print("Lets simulate!")
 for i in range(0,num_images_to_simulate):
-    set_poisson_values(input_files[i], poiss_layers, num_orientations)
+    set_poisson_values(gabors_to_nest['image_' + str(i)], poiss_layers, num_orientations)
     nest.Simulate(ms_per_stimuli)
-print('tiempo de simulacion: ', time.time() - t) 
+sim_time = time.time() - t
+
 
 ######################################################### Data Treatment #################################################################
 
@@ -67,4 +81,6 @@ save_dict(spike_detectors,'to_record_sd')
 
 for layer,j in zip(layers_to_record,range(0,len(layers_to_record))):
     tp.DumpLayerNodes(layers_to_record[layer],'positions-'+str(layer))
+    
+print("Times: \n Building architecture: " + str(conn_time) + "\n Image processing: " + str(gabors_time) + "\n Simulation: " + str(sim_time))
 

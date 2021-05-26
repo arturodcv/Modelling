@@ -21,7 +21,7 @@ from funciones   import *
 
 
 #orientations = [45.0,90.0,0.0,-45.0]
-orientations = [135.0,0.0,45.0,90.0]
+orientations = [0.0,45.0,90.0,135.0]
 #orientations = [0.0]
 #orientations =  [0.0,22.5,45.0,67.5,90.0, 112.5, 135.0, 157.5]
 neuron_types = ['exc', 'inh']
@@ -33,7 +33,7 @@ for orientation_to_read in orientations:
         print("\n ______________________________________________________________________________________________")
         
         path = results_path + '/results_' + str(orientation_to_read) + '_' + str(exc_or_inh)
-        create_folder(path)
+        create_folder(path) 
         remove_contents(path)
         # Read dataframe
         data = read_and_fix_dataframe(orientation_to_read,exc_or_inh)

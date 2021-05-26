@@ -16,6 +16,7 @@ import pickle
 from collections import Counter
 from collections import OrderedDict
 from scipy.fft import rfft
+from scipy.signal import fftconvolve
 from nest_values import *
 
 #################################################### Folders ################################################################
@@ -34,48 +35,31 @@ def remove_contents(path_name):
                 shutil.rmtree(file_path)
         except Exception as e:
             print('Failed to delete %s. Reason: %s' % (file_path, e))
-            
-##################################################### Create estimuli #########################################################
-
-def create_sin2d(size,freq,a,b):
-    array = np.zeros((size,size))
-    for j in range(0,size):
-        for i in range(0,size):
-            array[i][j] =  math.sin( 2*math.pi*freq*(a*i+b*j) )
-    return array
-
 
 ##################################################### Gabor ####################################################################
 
-def gabor_filter(K_size,Lambda, Theta, Sigma, Gamma, Psi, mode):
+def gabor_filter(K_size,Lambda, Theta, Sigma, Gamma, Psi):
     gabor = np.zeros((K_size, K_size), dtype=np.float32) 
     for x in range(K_size):
         for y in range(K_size):
             dx = x - K_size // 2; dy = y - K_size // 2
             x_ = np.cos(Theta) * dx + np.sin(Theta) * dy; y_ = -np.sin(Theta) * dx + np.cos(Theta) * dy
             gabor[x, y] = np.exp(-(x_**2 + Gamma**2 * y_**2) / (2 * Sigma**2)) * np.cos(2*np.pi*x_/Lambda + Psi)
-    if mode == 'on':
-        gabor = gabor
-
-    elif mode == 'off':
-        gabor = -gabor
     return gabor
 
-def apply_filter(gray_img, K_size, Lambda, Theta, Sigma, Gamma, Psi, mode):
+def apply_filter(gray_img, K_size, Lambda, Theta, Sigma, Gamma, Psi):
     gray = np.pad(gray_img, (K_size//2, K_size//2), 'edge')
-    output = np.zeros((gray_img.shape[0],gray_img.shape[1]), dtype=np.float32)
-    gabor = gabor_filter(K_size = K_size, Lambda = Lambda, Theta = Theta, Sigma = Sigma, Gamma = Gamma, Psi = Psi, mode = mode)
-    for x in range(gray_img.shape[0]):
-        for y in range(gray_img.shape[1]):
-            output[x, y] = np.sum(gray[x : x + K_size, y : y + K_size] * gabor) 
+    #gabor = gabor_filter(K_size = K_size, Lambda = Lambda, Theta = Theta, Sigma = Sigma, Gamma = Gamma, Psi = Psi)
+    gabor = np.zeros((100,100)); gabor[50,50] = 1.0
+    output = fftconvolve(gray,gabor, mode = "same")
     return output
 
     
-def gabor(gray_img,orientation_in_radians, mode):
+def gabor(gray_img,orientation_in_radians):
     output = np.zeros((gray_img.shape[0],gray_img.shape[1]), dtype=np.float32) 
     #orientation_ = (90 - orientation_in_radians)*math.pi/180
     orientation_ = orientation_in_radians*math.pi/180
-    output = apply_filter(gray_img, K_size=K_size, Lambda=Lambda, Theta=orientation_, Sigma=Sigma, Gamma=Gamma,Psi = Psi, mode = mode )
+    output = apply_filter(gray_img, K_size=K_size, Lambda=Lambda, Theta=orientation_, Sigma=Sigma, Gamma=Gamma,Psi = Psi )
     output = np.clip(output, 0, max(0,np.max(output)))
     return output
 
@@ -84,10 +68,7 @@ def gabor(gray_img,orientation_in_radians, mode):
 def input_treatment(input_spike,x_cortex_size,y_cortex_size,orientation):
     input_as_img = Image.fromarray(input_spike)
     input_resized = input_as_img.resize((x_cortex_size,y_cortex_size), resample = Image.NEAREST  )
-    #input_norm = np.divide(input_resized,1) * 1 ## cambiar
-    input_norm = np.divide(input_resized,np.max(input_resized)) * 100
-    plt.imshow(input_norm);plt.colorbar() ; plt.title("max = " + str(np.max(input_norm)))
-    plt.savefig(gabor_folder + '/gabor_' + str(orientation) + '_' + str(np.max(np.round(input_norm,0))) + '_.png'); plt.close('all')
+    input_norm = np.multiply(input_resized,1) 
     input_transposed = input_norm.transpose()
     input_as_list = input_transposed.tolist()
     flat_list = [item for sublist in input_as_list for item in sublist]
@@ -96,11 +77,36 @@ def input_treatment(input_spike,x_cortex_size,y_cortex_size,orientation):
 def main_img(img,orientation):
     img = cv2.imread(img)
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
-    output_gabor = gabor(gray_img,orientation,'on')
+    output_gabor = gabor(gray_img,orientation)
     if cut_pixels != 0:
         output_gabor = output_gabor[cut_pixels:-cut_pixels,cut_pixels:-cut_pixels]
+        
+    if orientation == 45.0 or orientation == 135.0:
+        output_gabor = np.multiply(output_gabor,50/np.max(output_gabor))
+    elif orientation == 90.0:
+        output_gabor = np.multiply(output_gabor,100/np.max(output_gabor))
+    else: 
+        output_gabor = np.multiply(output_gabor,0.0)     
     flat_list = input_treatment(output_gabor,x_cortex_size,y_cortex_size,orientation)
     return flat_list
+    
+def full_img_filtering(images_to_simulate,num_orientations):
+    gabors_dict = {}
+    for i in range(0,len(images_to_simulate)):
+        image_dict = {}
+        for j in range(0,num_orientations):
+            orientation = j*180/num_orientations
+            image_dict["orientation_"+str(orientation)] = main_img(images_to_simulate[i],orientation)
+        gabors_dict["image_"+str(i)] = image_dict
+    return gabors_dict
+
+def save_gabors(gabors_to_nest, images_to_simulate,num_orientations):
+    for i in range(0,len(images_to_simulate)):
+        for j in range(0, num_orientations):
+            orientation = j*180/num_orientations
+            img_to_save = np.asarray(gabors_to_nest["image_"+str(i)]["orientation_"+str(orientation)]).reshape((x_cortex_size,y_cortex_size)).transpose()
+            plt.imshow(img_to_save); plt.colorbar(); plt.title("orientation_" + str(orientation)); 
+            plt.savefig(gabor_folder + "/orientation_"+str(int(orientation)) + ".png"); plt.close("all")
     
 def main_create():
     l_exc  = create_layer(x_cortex_size,y_cortex_size,extent,'exc',neurons_per_column_exc)
@@ -144,13 +150,13 @@ def main_all_orientations(num_orientations):
 
 
 
-def set_poisson_values(img, poiss_layers,num_orientations):
+def set_poisson_values(img_dict, poiss_layers,num_orientations):
     flat_lists = []
     for i in range(0,num_orientations):
         #orientation = 90 - i*180/num_orientations; ##
         orientation = i*180/num_orientations;
-        flat_list = main_img(img,orientation)      
-        fixed_list = [k*factor + poisson_bias for k in flat_list] 
+        filtered_img =  img_dict["orientation_"+str(orientation)]
+        fixed_list = [k*factor + poisson_bias for k in flat_list]  ########## el + poisson bias no deberi de *factor?
         l_poiss = list(poiss_layers['orientation'+str(orientation)].values())[0]
         nest.SetStatus(nest.GetNodes(l_poiss)[0],'rate', fixed_list)
     
@@ -240,7 +246,6 @@ def generate_frames(data):
     array = np.reshape(array,(x_cortex_size,y_cortex_size))
     img = Image.fromarray(np.uint8(array),'L').resize(re_size).transpose(Image.FLIP_TOP_BOTTOM)
     img.save(name,compress_level = 1)
-    
     return times
     
 def generate_empty_frames(times):
@@ -306,7 +311,6 @@ def get_eeg(times, complementary_time_list, orientation_to_read, exc_or_inh, pat
     plt.plot(eeg); plt.title('eeg');
     plt.savefig(path + '/eeg_' + str(orientation_to_read) + '_' + str(exc_or_inh)+'_.png')
     plt.close('all')
-
     print("Eeg created succesfully!")
     return eeg
     
@@ -315,15 +319,5 @@ def get_frequencies(eeg,orientation_to_read,exc_or_inh, path):
     plt.plot(frequencies); plt.xlabel("Frequency (Hz)"); plt.ylabel("Frequency Domain (Spectrum) Magnitude")
     plt.grid(); plt.savefig(path + '/frequencies_' + str(orientation_to_read) + '_' + str(exc_or_inh)+'_.png')
     plt.close('all')
-
     print("Frequencies plot created succesfully!")
   
-
-
-
-
-
-
-
-
-
