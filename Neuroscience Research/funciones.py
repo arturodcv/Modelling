@@ -34,7 +34,8 @@ def remove_contents(path_name):
             elif os.path.isdir(file_path):
                 shutil.rmtree(file_path)
         except Exception as e:
-            print('Failed to delete %s. Reason: %s' % (file_path, e))
+            #print('Failed to delete %s. Reason: %s' % (file_path, e))
+            continue
 
 ##################################################### Gabor ####################################################################
 
@@ -51,7 +52,7 @@ def apply_filter(gray_img, K_size, Lambda, Theta, Sigma, Gamma, Psi):
     gray = np.pad(gray_img, (K_size//2, K_size//2), 'edge')
     #gabor = gabor_filter(K_size = K_size, Lambda = Lambda, Theta = Theta, Sigma = Sigma, Gamma = Gamma, Psi = Psi)
     gabor = np.zeros((100,100)); gabor[50,50] = 1.0
-    output = fftconvolve(gray,gabor, mode = "valid")
+    output = fftconvolve(gray,gabor, mode = "same")
     return output
 
     
@@ -67,9 +68,8 @@ def gabor(gray_img,orientation_in_radians):
 
 def input_treatment(input_spike,x_cortex_size,y_cortex_size,orientation):
     input_as_img = Image.fromarray(input_spike)
-    input_resized = input_as_img.resize((x_cortex_size,y_cortex_size), resample = Image.NEAREST  )
-    input_norm = np.multiply(input_resized,1) 
-    input_transposed = input_norm.transpose()
+    input_resized = np.asarray(input_as_img.resize((x_cortex_size,y_cortex_size), resample = Image.NEAREST  ))
+    input_transposed = input_resized.transpose()
     input_as_list = input_transposed.tolist()
     flat_list = [item for sublist in input_as_list for item in sublist]
     return flat_list
@@ -77,7 +77,9 @@ def input_treatment(input_spike,x_cortex_size,y_cortex_size,orientation):
 def main_img(img,orientation):
     img = cv2.imread(img)
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
-    output_gabor = gabor(gray_img,orientation)
+    #output_gabor = gabor(gray_img,orientation)
+    output_gabor = gray_img
+    output_gabor = np.multiply(output_gabor,np.max(output_gabor)/255)
     if cut_pixels != 0:
         output_gabor = output_gabor[cut_pixels:-cut_pixels,cut_pixels:-cut_pixels]
         
@@ -87,6 +89,8 @@ def main_img(img,orientation):
         output_gabor = np.multiply(output_gabor,100/np.max(output_gabor))
     else: 
         output_gabor = np.multiply(output_gabor,0.0)     
+        
+
     flat_list = input_treatment(output_gabor,x_cortex_size,y_cortex_size,orientation)
     return flat_list
     
@@ -156,7 +160,7 @@ def set_poisson_values(img_dict, poiss_layers,num_orientations):
         #orientation = 90 - i*180/num_orientations; ##
         orientation = i*180/num_orientations;
         filtered_img =  img_dict["orientation_"+str(orientation)]
-        fixed_list = [k*factor + poisson_bias for k in flat_list]  ########## el + poisson bias no deberi de *factor?
+        fixed_list = [k*factor + poisson_bias for k in filtered_img]  ########## el + poisson bias no deberi de *factor?
         l_poiss = list(poiss_layers['orientation'+str(orientation)].values())[0]
         nest.SetStatus(nest.GetNodes(l_poiss)[0],'rate', fixed_list)
     
