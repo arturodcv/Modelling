@@ -19,6 +19,8 @@ from scipy.fft import rfft
 from scipy.signal import fftconvolve
 from nest_values import *
 
+import datatable as dt
+
 #################################################### Folders ################################################################
 
 def create_folder(path_name):
@@ -89,8 +91,6 @@ def main_img(img,orientation):
         output_gabor = np.multiply(output_gabor,100/np.max(output_gabor))
     else: 
         output_gabor = np.multiply(output_gabor,0.0)     
-        
-
     flat_list = input_treatment(output_gabor,x_cortex_size,y_cortex_size,orientation)
     return flat_list
     
@@ -117,16 +117,17 @@ def main_create():
     l_inh  = create_layer(x_cortex_size,y_cortex_size,extent,'inh',neurons_per_column_inh)
     sd_exc = nest.Create('spike_detector', params = {'to_file': True, 'to_memory': False})
     sd_inh = nest.Create('spike_detector', params = {'to_file': True, 'to_memory': False})
-    l_poiss = create_layer(x_cortex_size,y_cortex_size,extent,'poisson_generator',1)
-    return l_exc,l_inh,sd_exc,sd_inh,l_poiss
+    l_poiss_exc = create_layer(x_cortex_size,y_cortex_size,extent,'poisson_generator',1)
+    l_poiss_inh = create_layer(x_cortex_size,y_cortex_size,extent,'poisson_generator',1)
+    return l_exc,l_inh,sd_exc,sd_inh,l_poiss_exc,l_poiss_inh
     
 def main_one_orientation(orientation):
     orientation = orientation*math.pi/180
-    l_exc,l_inh,sd_exc,sd_inh,l_poiss = main_create()
-    main_self_connections(l_exc,l_inh,sd_exc,sd_inh,l_poiss ,orientation)
+    l_exc,l_inh,sd_exc,sd_inh,l_poiss_exc,l_poiss_inh = main_create()
+    main_self_connections(l_exc,l_inh,sd_exc,sd_inh,l_poiss_exc,l_poiss_inh ,orientation)
     orientation = orientation*180 / math.pi
     lyrs_dict = {'l_exc_'+str(orientation): l_exc,'l_inh_'+str(orientation): l_inh,'sd_exc_'+str(orientation): sd_exc,'sd_inh_'+str(orientation): sd_inh}
-    poiss_dict = {'l_poiss_'+str(orientation): l_poiss}
+    poiss_dict = {'l_poiss_exc_'+str(orientation): l_poiss_exc, 'l_poiss_inh_'+str(orientation): l_poiss_inh}
     return lyrs_dict, poiss_dict
 
 
@@ -137,7 +138,7 @@ def main_all_orientations(num_orientations):
     for i in range(0,num_orientations):
         #orientation = 90 - i*180/num_orientations ###
         orientation =  i*180/num_orientations 
-        lyrs["orientation_" + str(orientation)], poiss["orientation"+str(orientation)] = main_one_orientation(orientation)
+        lyrs["orientation_" + str(orientation)], poiss["orientation_"+str(orientation)] = main_one_orientation(orientation)
     for i in range(0,num_orientations):
         for j in range(0,num_orientations):
             #or_i = 90 - i*180/num_orientations; ##
@@ -149,7 +150,7 @@ def main_all_orientations(num_orientations):
             l_exc_j = lyrs['orientation_'+str(or_j)]['l_exc_'+str(or_j)]
             l_inh_j = lyrs['orientation_'+str(or_j)]['l_inh_'+str(or_j)]
                 
-            main_lat_connections(l_exc_i,l_exc_j,l_inh_i,l_inh_j,i*math.pi/num_orientations,j*math.pi/num_orientations)
+            #main_lat_connections(l_exc_i,l_exc_j,l_inh_i,l_inh_j,i*math.pi/num_orientations,j*math.pi/num_orientations)
     return lyrs, poiss
 
 
@@ -160,11 +161,16 @@ def set_poisson_values(img_dict, poiss_layers,num_orientations):
         #orientation = 90 - i*180/num_orientations; ##
         orientation = i*180/num_orientations;
         filtered_img =  img_dict["orientation_"+str(orientation)]
-        fixed_list = [k*factor + poisson_bias for k in filtered_img]  ########## el + poisson bias no deberi de *factor?
-        l_poiss = list(poiss_layers['orientation'+str(orientation)].values())[0]
-        nest.SetStatus(nest.GetNodes(l_poiss)[0],'rate', fixed_list)
-    
+         
+        #fixed_list_exc = [(k + poisson_bias) * factor_exc for k in range(0,len(filtered_img))]; 
+        #fixed_list_inh = [(k + poisson_bias) * factor_inh for k in range(0,len(filtered_img))]; 
+        fixed_list_exc = [(k ) * factor_exc for k in filtered_img]; 
+        fixed_list_inh = [(k ) * factor_inh for k in filtered_img]; 
 
+        l_poiss_exc = list(poiss_layers['orientation_'+str(orientation)]['l_poiss_exc_' + str(orientation)])
+        l_poiss_inh = list(poiss_layers['orientation_'+str(orientation)]['l_poiss_inh_' + str(orientation)])
+        nest.SetStatus(nest.GetNodes(l_poiss_exc)[0],'rate', fixed_list_exc)
+        nest.SetStatus(nest.GetNodes(l_poiss_inh)[0],'rate', fixed_list_inh)
 
 ################################################################# Layers #################################################################
 
@@ -182,9 +188,9 @@ def create_lat_exc(kernel_type,kappa,orientation_i,orientation_j):
              'allow_autapses': allow_autapses, 'allow_multapses': allow_multapses
             }    
 
-def main_self_connections(l_exc,l_inh,sd_exc,sd_inh,l_poiss, self_orientation):
-    tp.ConnectLayers(l_poiss, l_exc, dict_poiss_to_exc)
-    tp.ConnectLayers(l_poiss, l_inh, dict_poiss_to_inh)
+def main_self_connections(l_exc,l_inh,sd_exc,sd_inh,l_poiss_exc,l_poiss_inh, self_orientation):
+    tp.ConnectLayers(l_poiss_exc, l_exc, dict_poiss_to_exc)
+    tp.ConnectLayers(l_poiss_inh, l_inh, dict_poiss_to_inh)
     leaves_exc = nest.GetLeaves(l_exc, local_only=True)[0]
     nest.Connect(leaves_exc, sd_exc)
     leaves_inh = nest.GetLeaves(l_inh, local_only=True)[0]
@@ -192,10 +198,10 @@ def main_self_connections(l_exc,l_inh,sd_exc,sd_inh,l_poiss, self_orientation):
 
     
 def main_lat_connections(l_exc_i,l_exc_j,l_inh_i,l_inh_j,orientation_i,orientation_j): 
-    tp.ConnectLayers(l_exc_i, l_exc_j, short_range_exc)
-    tp.ConnectLayers(l_inh_i, l_inh_j, short_range_inh) 
-    tp.ConnectLayers(l_exc_i, l_inh_j, short_range_exc) 
-    tp.ConnectLayers(l_inh_i, l_exc_j, short_range_inh)
+    #tp.ConnectLayers(l_exc_i, l_exc_j, short_range_exc)
+    #tp.ConnectLayers(l_inh_i, l_inh_j, short_range_inh) 
+    #tp.ConnectLayers(l_exc_i, l_inh_j, short_range_exc) 
+    #tp.ConnectLayers(l_inh_i, l_exc_j, short_range_inh)
     tp.ConnectLayers(l_exc_i, l_exc_j, create_lat_exc('PlosOne_J',kappa_j,orientation_i,orientation_j))
     tp.ConnectLayers(l_exc_i, l_inh_j, create_lat_exc('PlosOne_W',kappa_w,orientation_i,orientation_j))
 
@@ -292,13 +298,15 @@ def create_video(img_array,orientation_to_read ,exc_or_inh, path):
 def create_avg_img(img_array,orientation_to_read ,exc_or_inh, path ):
     print('Getting average image')
     img_sum = np.zeros(re_size)
-    for img in tqdm(img_array):
-        img_sum = img_sum + np.divide(img,len(img_array)*neurons_per_column_exc)
+    if exc_or_inh == 'exc':
+        for img in tqdm(img_array):
+            img_sum = img_sum + np.divide(img,neurons_per_column_exc)
+    if exc_or_inh == 'inh':
+        for img in tqdm(img_array):
+            img_sum = img_sum + np.divide(img,neurons_per_column_inh)
 
-    plt.imshow(img_sum)
-    plt.title('Average image')
-    plt.colorbar()
-    plt.imsave(path + '/Average_img_' + str(orientation_to_read) + '_' + str(exc_or_inh)+'_.png',img_sum)
+    plt.imshow(img_sum);  plt.title('Average image'); plt.colorbar()
+    plt.savefig(path + '/Average_img_' + str(orientation_to_read) + '_' + str(exc_or_inh)+'_.png');
     plt.close('all')
     print("Average image created succesfully!")
     

@@ -46,10 +46,7 @@ create_folder(positions_path); remove_contents(positions_path)
 t = time.time()
 gabors_to_nest = full_img_filtering(images_to_simulate,num_orientations)
 gabors_time = time.time() - t
-save_gabors(gabors_to_nest, images_to_simulate,num_orientations);
-
-quit()
-
+#save_gabors(gabors_to_nest, images_to_simulate,num_orientations);
 
 ############################################################  Connectivity ######################################################################
 
@@ -57,6 +54,7 @@ t = time.time()
 layers, poiss_layers = main_all_orientations(num_orientations)
 conn_time = time.time() - t
 print("All layers succesfully connected!")
+
 
 ############################################################## Simulation #######################################################################
  
@@ -66,7 +64,6 @@ for i in range(0,num_images_to_simulate):
     set_poisson_values(gabors_to_nest['image_' + str(i)], poiss_layers, num_orientations)
     nest.Simulate(ms_per_stimuli)
 sim_time = time.time() - t
-
 
 ######################################################### Data Treatment #################################################################
 

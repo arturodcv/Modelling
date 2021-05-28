@@ -21,10 +21,10 @@ max_normalized_value = 100
 #images_to_simulate = [input_images_path + '/sinusoide_0_freq.png' ]
 #images_to_simulate = [input_images_path + '/double_vertical_gauss.png' ]
 #images_to_simulate = [input_images_path + '/sinusoid_vertical_freq_half.png', input_images_path + '/sinusoide_0_freq.png' ]
-images_to_simulate = [input_images_path + '/pixil-frame-0.png' ] 
+images_to_simulate = [input_images_path + '/vertical_no_gris.png' ] 
 
 num_images_to_simulate = len(images_to_simulate)
-ms_per_stimuli = 1000.0
+ms_per_stimuli = 500.0
 simulation_time = ms_per_stimuli * num_images_to_simulate 
 
 #Size
@@ -45,13 +45,13 @@ num_orientations = 4
 extent = [float(num_hipercolumns), float(num_hipercolumns)]
 ratio_exc_inh = 4
 neurons_per_column_inh = 6
-neurons_per_column_exc = ratio_exc_inh * neurons_per_column_inh
+neurons_per_column_exc = ratio_exc_inh * neurons_per_column_inh 
 poisson_bias = 5.0
 
 
 #Poisson
-factor = 430
-
+factor_exc = 107.25
+factor_inh = 20.1 ## 37.0
 
 ############ Dictionaries
 
@@ -86,7 +86,7 @@ mean_lat_conn_exc_4cbeta = 0.0
 stddev_lat_conn_exc_4cbeta = stddev_lat_conn_inh_4cbeta / 2.0
 
 n_sigmas_inside_mask_4cbeta = 2.25
-n_microcolumn_height = 10
+n_microcolumn_height = 10 
 n_microcolumn_width = 10
 n_rows_latconn_inh_4cbeta = int(stddev_lat_conn_inh_4cbeta * n_sigmas_inside_mask_4cbeta * 2 * n_microcolumn_height) + 1
 n_cols_latconn_inh_4cbeta = int(stddev_lat_conn_inh_4cbeta * n_sigmas_inside_mask_4cbeta * 2 * n_microcolumn_width) + 1
@@ -99,14 +99,18 @@ syn_model_exc = 'static_synapse_hpc'
 
 # PlosOne
 kappa_j = 0.126 * 7.14
-kappa_w = 0.14  * 7.14
+kappa_w = 0.14  * 7.14 
 rescale = 5.0
 
 dict_poiss_to_exc  = {'connection_type': 'divergent','mask': {'grid': {'rows': 1, 'columns': 1}},'weights': input_weight_exc, 
                       'allow_autapses': allow_autapses, 'allow_multapses': allow_multapses}
 
-dict_poiss_to_inh  = {'connection_type': 'divergent','mask': {'grid': {'rows': 1, 'columns': 1}},'weights': input_weight_inh, 
+dict_poiss_to_inh  = {'connection_type': 'divergent','weights': input_weight_inh ,
+                      'kernel': {'gaussian':{'p_center': p_center_inh, 'sigma':stddev_lat_conn_inh_4cbeta , 'mean': 0.0}}, 
                       'allow_autapses': allow_autapses, 'allow_multapses': allow_multapses}
+
+dict_poiss_to_exc = dict_poiss_to_inh
+
 
 dict_divergent     = {'connection_type': 'divergent','mask': {'grid': {'rows': 1, 'columns': 1}},
                       'allow_autapses': allow_autapses, 'allow_multapses': allow_multapses}
@@ -125,7 +129,7 @@ short_range_exc    =  {'connection_type': 'convergent',
                                 'anchor':{'row':(n_rows_latconn_exc_4cbeta-1)//2,'column':(n_cols_latconn_exc_4cbeta-1)//2}},
                        'delays': {'linear':{'c':delay_exc_min,'a':slowness_exc}},
                        'kernel': {'gaussian':{'p_center': p_center_exc, 'sigma':stddev_lat_conn_exc_4cbeta , 'mean':mean_lat_conn_exc_4cbeta}},
-                       'weights': 0.1 * 0.2 * default_synapse_weight_exc , ###!!!!!
+                       'weights': 0.1 * 0.2 * default_synapse_weight_exc ,
                        'synapse_model':syn_model_exc,
                        'allow_autapses': allow_autapses, 'allow_multapses': allow_multapses}
                  
