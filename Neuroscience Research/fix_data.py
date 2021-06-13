@@ -44,12 +44,12 @@ positions.to_pickle('positions_.pkl')
 #########################
 
 dist =  1/10
-select = 5
+select = radius
 d = dist*select
 
 x_pos = positions["x_pos"]
 y_pos = positions["y_pos"]
-positions = positions.loc[(x_pos <= d) & (x_pos >= -d) & (y_pos <= d) & (y_pos >= -d) ]
+positions = positions.loc[(x_pos**2 + y_pos**2  <= d**2) ]
 
 ##########################  
 
@@ -60,6 +60,7 @@ spike_detectors = load_dict('to_record_sd')
 
 print('Fixing the data...')
 lengths = []
+total_data = []
 t = time.time()
 spike_detectors = list(spike_detectors.values())
 for layer, spk in zip(layers_to_record,spike_detectors):
@@ -78,25 +79,25 @@ for layer, spk in zip(layers_to_record,spike_detectors):
     data = data.set_index(([pd.Index([i for i in range(0,len(data))])]))
     data['Number'] = data.Number.astype(float)
     data = pd.merge(data,positions,how = 'left',on = 'Number' )
-    #############
     data.dropna(subset = ["x_pos","y_pos"], inplace=True) 
-    #############
+
+    total_data.append(data)
    
     data.to_pickle(df_folder + '/data_' + str(layer) +'.pkl')
     print('Numero de spikes ' +str(layer)+': ' + str(len(data)) + '\n')
     lengths.append(len(data))
     del(data)
 
-del(positions)
+total_data = pd.concat(total_data)
+total_data.to_pickle(df_folder + '/data_total_.pkl')
+
+del(positions); del(total_data)
+
 print('Tiempo tratamiento de datos: '+str(time.time() - t))
-
-
 
 print("     exc          inh          \n   -----------------------------")
 for i in range(0,int(len(lengths)/2)):
     print('   ' + str(lengths[2*i]) + '       ' + str(lengths[2*i+1]))
-
-
 
 
 

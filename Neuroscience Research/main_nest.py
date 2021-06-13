@@ -46,7 +46,7 @@ create_folder(positions_path); remove_contents(positions_path)
 t = time.time()
 gabors_to_nest = full_img_filtering(images_to_simulate,num_orientations)
 gabors_time = time.time() - t
-#save_gabors(gabors_to_nest, images_to_simulate,num_orientations);
+#save_gabors(gabors_to_nest, images_to_simulate,num_orientations);       quit()
 
 ############################################################  Connectivity ######################################################################
 
