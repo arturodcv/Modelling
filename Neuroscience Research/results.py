@@ -33,6 +33,7 @@ eeg = get_eeg(times, complementary_time_list, 'total', '_', path)
 get_frequencies(eeg,'total','_', path)
 
 
+
 orientations = [0.0,45.0,90.0,135.0]
 neuron_types = ['l_exc', 'l_inh']
 

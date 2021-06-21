@@ -15,6 +15,7 @@ import nest.topology as tp
 import pickle
 from collections import Counter
 from collections import OrderedDict
+import scipy
 from scipy.fft import rfft
 from scipy.signal import fftconvolve
 from scipy.signal import find_peaks
@@ -53,13 +54,12 @@ def gabor_filter(K_size,Lambda, Theta, Sigma, Gamma, Psi):
 def apply_filter(gray_img, K_size, Lambda, Theta, Sigma, Gamma, Psi):
     gray = np.pad(gray_img, (K_size//2, K_size//2), 'edge')
     gabor = gabor_filter(K_size = K_size, Lambda = Lambda, Theta = Theta, Sigma = Sigma, Gamma = Gamma, Psi = Psi)
-    output = fftconvolve(gray,gabor, mode = "same")
+    output = fftconvolve(gray,gabor, mode = "valid")
     return output
 
     
 def gabor(gray_img,orientation_in_radians):
     output = np.zeros((gray_img.shape[0],gray_img.shape[1]), dtype=np.float32) 
-    #orientation_ = (90 - orientation_in_radians)*math.pi/180
     orientation_ = orientation_in_radians*math.pi/180
     output = apply_filter(gray_img, K_size=K_size, Lambda=Lambda, Theta=orientation_, Sigma=Sigma, Gamma=Gamma,Psi = Psi )
     output = np.clip(output, 0, max(0,np.max(output)))
@@ -75,35 +75,28 @@ def input_treatment(input_spike,x_cortex_size,y_cortex_size,orientation):
     flat_list = [item for sublist in input_as_list for item in sublist]
     return flat_list
     
-def main_img(img,orientation):
+def main_img(img,orientation, max_to_rescale):
     img = cv2.imread(img)
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
-    #output_gabor = gabor(gray_img,orientation)                                           ######### !!!!!!!!!
-    output_gabor = gray_img                                                               ######### !!!!!!!!!
-    #output_gabor = np.multiply(output_gabor,np.max(output_gabor)/255) 
+    output_gabor = gabor(gray_img,orientation) 
+    output_gabor = np.multiply(output_gabor,1/(max_to_rescale/100))
     
     if cut_pixels != 0:
         output_gabor = output_gabor[cut_pixels:-cut_pixels,cut_pixels:-cut_pixels]
-    #output_gabor = np.multiply(output_gabor,1/1580.88)
-    
-    if orientation == 45.0 or orientation == 135.0:
-        output_gabor = np.multiply(output_gabor,50.0/np.max(output_gabor))
-    elif orientation == 90.0:
-        output_gabor = np.multiply(output_gabor,100.0/np.max(output_gabor))
-    else: 
-        output_gabor = np.multiply(output_gabor,0.0/np.max(output_gabor))   
         
-          
     flat_list = input_treatment(output_gabor,x_cortex_size,y_cortex_size,orientation)
     return flat_list
     
 def full_img_filtering(images_to_simulate,num_orientations):
     gabors_dict = {}
+    max_gabor = (gabor_filter(K_size = K_size, Lambda = Lambda, Theta = 90 * math.pi/ 180, Sigma = Sigma, Gamma = 0.0, Psi = Psi) + 1) * 255 / 2
+    max_gabor = np.max(gabor(max_gabor,90))
+
     for i in range(0,len(images_to_simulate)):
         image_dict = {}
         for j in range(0,num_orientations):
             orientation = j*180/num_orientations
-            image_dict["orientation_"+str(orientation)] = main_img(images_to_simulate[i],orientation)
+            image_dict["orientation_"+str(orientation)] = main_img(images_to_simulate[i],orientation,max_gabor)
         gabors_dict["image_"+str(i)] = image_dict
     return gabors_dict
 
@@ -139,14 +132,11 @@ def main_all_orientations(num_orientations):
     lyrs = {}
     poiss = {}
     for i in range(0,num_orientations):
-        #orientation = 90 - i*180/num_orientations ###
         orientation =  i*180/num_orientations 
         lyrs["orientation_" + str(orientation)], poiss["orientation_"+str(orientation)] = main_one_orientation(orientation)
     for i in range(0,num_orientations):
         for j in range(0,num_orientations):
-            #or_i = 90 - i*180/num_orientations; ##
             or_i = i*180/num_orientations;
-            #or_j = 90 - j*180/num_orientations;  ##
             or_j = j*180/num_orientations;
             l_exc_i = lyrs['orientation_'+str(or_i)]['l_exc_'+str(or_i)]
             l_inh_i = lyrs['orientation_'+str(or_i)]['l_inh_'+str(or_i)]
@@ -161,7 +151,6 @@ def main_all_orientations(num_orientations):
 def set_poisson_values(img_dict, poiss_layers,num_orientations):
     flat_lists = []
     for i in range(0,num_orientations):
-        #orientation = 90 - i*180/num_orientations; ##
         orientation = i*180/num_orientations;
         filtered_img =  img_dict["orientation_"+str(orientation)]
          
@@ -184,8 +173,9 @@ def create_layer(rows,columns,extent,elements,neurons_per_column):
 
 def create_lat_exc(kernel_type,kappa,orientation_i,orientation_j):
     return  {'connection_type': 'convergent',    
+             'mask': {'circular': {'radius': rescale/2.35}},
              'kernel': {kernel_type: {'kappa': kappa,'orientation_i': orientation_i, 'orientation_j': orientation_j, 'rescale': rescale }},
-             'weights': default_synapse_weight_exc * 0.1 * 0.2 * 4,
+             'weights': default_synapse_weight_exc * 0.08, 
              'delays': {'linear':{'c':delay_exc_min,'a':slowness_exc}}, 
              'synapse_model': syn_model_exc,
              'allow_autapses': allow_autapses, 'allow_multapses': allow_multapses
@@ -306,11 +296,11 @@ def create_video(img_array,orientation_to_read ,exc_or_inh, path):
 def create_avg_img(img_array,orientation_to_read ,exc_or_inh, path ):
     #print('Getting average image')
     img_sum = np.zeros(re_size)
-    if exc_or_inh == 'exc':
+    if exc_or_inh == 'l_exc':
         #for img in tqdm(img_array):
         for img in img_array[image_from:]:
             img_sum = img_sum + np.divide(img,neurons_per_column_exc)
-    if exc_or_inh == 'inh':
+    if exc_or_inh == 'l_inh':
         #for img in tqdm(img_array):
         for img in img_array[image_from:]:
             img_sum = img_sum + np.divide(img,neurons_per_column_inh)
@@ -325,11 +315,6 @@ def get_eeg(times, complementary_time_list, orientation_to_read, exc_or_inh, pat
     eeg.update({i:0 for i in complementary_time_list})
     eeg = list(OrderedDict(sorted(eeg.items())).values())
 
-    eeg_cut = eeg[100:int(simulation_time)]
-    plt.plot(eeg_cut); plt.title('eeg_cut 100:' + str(int(simulation_time)));
-    plt.savefig(path + '/eeg_cut_' + str(orientation_to_read) + '_' + str(exc_or_inh)+'_.png')
-    plt.close('all')
-
     plt.plot(eeg); plt.title('eeg');
     plt.savefig(path + '/eeg_' + str(orientation_to_read) + '_' + str(exc_or_inh)+'_.png')
     plt.close('all')
@@ -337,14 +322,18 @@ def get_eeg(times, complementary_time_list, orientation_to_read, exc_or_inh, pat
     return eeg
     
 def get_frequencies(eeg,orientation_to_read,exc_or_inh, path):
-    frequencies = np.abs(rfft(np.asarray(eeg[:-1])))
-    peaks, values = find_peaks(frequencies, height= 10, distance = 10); 
-    print("Freq    Value ")
+    #frequencies = np.abs(rfft(np.asarray(eeg[:-1])))
+    freqs, density = scipy.signal.periodogram(eeg, scaling = 'spectrum')
+    #peaks, values = find_peaks(frequencies, height= 10, distance = 10); 
+    peaks, values = find_peaks(density, height= 10, distance = 10); 
+    print("Node    Narrowband      Broadband[", broadband_initial , ',' , broadband_end, ']')
     idx = (- values['peak_heights']).argsort()[:num_max_frequencies]
-    for i,j in zip(peaks[idx].tolist(), values['peak_heights'][idx].tolist()):
-        print(i,j)
+    for node,peak_value in zip(peaks[idx].tolist(), values['peak_heights'][idx].tolist()):
+        #print(node,'     ',np.around(peak_value,2), '     ',np.around(sum(frequencies[broadband_initial:broadband_end]),2))
+        print(node,'     ',np.around(peak_value,2), '     ',np.around(sum(density[broadband_initial:broadband_end]),2))
 
-    plt.plot(frequencies[1:-5]); plt.xlabel("Frequency (Hz)"); plt.ylabel("Frequency Domain (Spectrum) Magnitude")
+    #plt.plot(frequencies[1:-5]); plt.xlabel("Frequency (Hz)"); plt.ylabel("Frequency Domain (Spectrum) Magnitude")
+    plt.plot(density); plt.xlabel("Frequency (Hz)"); plt.ylabel("Frequency Domain (Spectrum) Magnitude")
     plt.grid(); plt.savefig(path + '/frequencies_' + str(orientation_to_read) + '_' + str(exc_or_inh)+'_.png')
     plt.close('all')
     #print("Frequencies plot created succesfully!")

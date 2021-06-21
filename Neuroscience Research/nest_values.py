@@ -8,18 +8,15 @@ input_images_path = 'input_images_folder'
 gabor_folder = 'gabor_outputs'
 
 #Gabor
-#K_size = 500; Lambda = 100;Gamma = 1.6 ;Psi = 0 ;Sigma = 65.5 # Para las gaussianas en linea horizontal
-K_size = 100; Lambda = 50;Gamma = 0.9 ;Psi = 0 ;Sigma = 23.202149768453094
-
+K_size = 150; Lambda = 75;Gamma = 1.25 ;Psi = 0 ;Sigma = 34.80621765136719
 cut_pixels = 0
-max_normalized_value = 100
 
 #Simulation 
-images_to_simulate = [input_images_path + '/gabor.png' ] 
-radius = 5
+images_to_simulate = [input_images_path + '/big.png' ] 
+
 
 num_images_to_simulate = len(images_to_simulate)
-ms_per_stimuli = 500.0
+ms_per_stimuli = 1000.0
 simulation_time = ms_per_stimuli * num_images_to_simulate 
 
 #Size
@@ -116,8 +113,8 @@ short_range_inh_exc       =  {'connection_type': 'convergent',
                        'mask': {'grid':{'rows':n_rows_latconn_inh_4cbeta,'columns':n_cols_latconn_inh_4cbeta}, 
                                 'anchor':{'row':(n_rows_latconn_inh_4cbeta-1)//2,'column':(n_cols_latconn_inh_4cbeta-1)//2}},
                        'delays': {'linear':{'c':delay_inh_min,'a':slowness_inh}},
-                       'kernel': {'gaussian':{'p_center': p_center_inh , 'sigma':stddev_lat_conn_inh_4cbeta , 'mean': mean_lat_conn_inh_4cbeta}},
-                       'weights': default_synapse_weight_inh * 0.4 ,
+                       'kernel': {'gaussian':{'p_center': p_center_inh / 1  , 'sigma':stddev_lat_conn_inh_4cbeta , 'mean': mean_lat_conn_inh_4cbeta}},
+                       'weights': default_synapse_weight_inh * 0.3 ,
                        'synapse_model':syn_model_inh,
                        'allow_autapses': allow_autapses, 'allow_multapses': allow_multapses}
                        
@@ -125,7 +122,7 @@ short_range_inh_inh =  {'connection_type': 'convergent',
                        'mask': {'grid':{'rows':n_rows_latconn_inh_4cbeta,'columns':n_cols_latconn_inh_4cbeta}, 
                                 'anchor':{'row':(n_rows_latconn_inh_4cbeta-1)//2,'column':(n_cols_latconn_inh_4cbeta-1)//2}},
                        'delays': {'linear':{'c':delay_inh_min,'a':slowness_inh}},
-                       'kernel': {'gaussian':{'p_center': p_center_inh / 6 , 'sigma':stddev_lat_conn_inh_4cbeta , 'mean': mean_lat_conn_inh_4cbeta}},
+                       'kernel': {'gaussian':{'p_center': p_center_inh / 6 , 'sigma':stddev_lat_conn_inh_4cbeta , 'mean': mean_lat_conn_inh_4cbeta}}, 
                        'weights': default_synapse_weight_inh * 0.3 ,
                        'synapse_model':syn_model_inh,
                        'allow_autapses': allow_autapses, 'allow_multapses': allow_multapses}
@@ -134,7 +131,7 @@ short_range_exc_exc    =  {'connection_type': 'convergent',
                        'mask': {'grid':{'rows':n_rows_latconn_exc_4cbeta,'columns':n_cols_latconn_exc_4cbeta}, 
                                 'anchor':{'row':(n_rows_latconn_exc_4cbeta-1)//2,'column':(n_cols_latconn_exc_4cbeta-1)//2}},
                        'delays': {'linear':{'c':delay_exc_min,'a':slowness_exc}},
-                       'kernel': {'gaussian':{'p_center': p_center_exc / 5, 'sigma':stddev_lat_conn_exc_4cbeta , 'mean':mean_lat_conn_exc_4cbeta}},
+                       'kernel': {'gaussian':{'p_center': p_center_exc / 4 , 'sigma':stddev_lat_conn_exc_4cbeta , 'mean':mean_lat_conn_exc_4cbeta}}, 
                        'weights':  default_synapse_weight_exc * 0.3 , 
                        'synapse_model':syn_model_exc,
                        'allow_autapses': allow_autapses, 'allow_multapses': allow_multapses}
@@ -143,7 +140,7 @@ short_range_exc_inh    =  {'connection_type': 'convergent',
                        'mask': {'grid':{'rows':n_rows_latconn_exc_4cbeta,'columns':n_cols_latconn_exc_4cbeta}, 
                                 'anchor':{'row':(n_rows_latconn_exc_4cbeta-1)//2,'column':(n_cols_latconn_exc_4cbeta-1)//2}},
                        'delays': {'linear':{'c':delay_exc_min,'a':slowness_exc}},
-                       'kernel': {'gaussian':{'p_center': p_center_exc / 5, 'sigma':stddev_lat_conn_exc_4cbeta , 'mean':mean_lat_conn_exc_4cbeta}},
+                       'kernel': {'gaussian':{'p_center': p_center_exc / 2  , 'sigma':stddev_lat_conn_exc_4cbeta , 'mean':mean_lat_conn_exc_4cbeta}}, 
                        'weights':  default_synapse_weight_exc * 0.3 , 
                        'synapse_model':syn_model_exc,
                        'allow_autapses': allow_autapses, 'allow_multapses': allow_multapses}
@@ -156,16 +153,20 @@ FS_dict =  {'a':0.1, 'b':0.2, 'c':-65., 'd':2.0, 'V_th':30.}
 
 
 
-
+  
 #Save dictionary
 def save_dict(to_save,name_to_save):
     to_record = open( name_to_save + ".pkl", "wb")
     pickle.dump(to_save, to_record)
     to_record.close()
 
-#Video and image
+#Results (image, video, EEG, frequencies)
 window_time = 0
 re_size = (x_cortex_size,y_cortex_size)
 frames_per_second = 20
 num_max_frequencies = 1
+broadband_initial = 30
+broadband_end = 70
 image_from = 100
+radius = 5
+

@@ -84,7 +84,12 @@ for layer, spk in zip(layers_to_record,spike_detectors):
     total_data.append(data)
    
     data.to_pickle(df_folder + '/data_' + str(layer) +'.pkl')
-    print('Numero de spikes ' +str(layer)+': ' + str(len(data)) + '\n')
+    
+    
+    #data = data.sort_values(by=['Time'])
+    #data = data[data['Time'] > 50.0]
+    
+    #print('Numero de spikes ' +str(layer)+': ' + str(len(data)) + '\n')
     lengths.append(len(data))
     del(data)
 
@@ -99,7 +104,7 @@ print("     exc          inh          \n   -----------------------------")
 for i in range(0,int(len(lengths)/2)):
     print('   ' + str(lengths[2*i]) + '       ' + str(lengths[2*i+1]))
 
-
+print("Total number of spikes: ", sum(lengths))
 
 
 
