@@ -39,6 +39,14 @@
 #include "slimodule.h"
 #include <math.h>
 
+  const double euler = exp(1.0);
+  const double PI_11_999 = M_PI * 0.08333; // 1/11.999 = 0.08333
+  const double PI_1_35 = M_PI * 0.7407;
+  const double PI_3 = M_PI * 0.3333;
+  const double M_4_PI = M_2_PI * 2;
+  const double PI_2_69 = M_PI * 0.3717; 
+  const double PI_5_9  = M_PI * 0.1694;
+
 // Put your stuff into your own namespace.
 namespace mynest
 {
@@ -130,10 +138,6 @@ public:
       updateValue<double>(d, "rescale", rescale);
     }
 
-  double euler = exp(1.0)  ; 
-  double PI_2_69 = M_PI * 0.3717; 
-  double PI_1_35 = M_PI * 0.7407;
-  double PI_5_9  = M_PI * 0.1694;
   double raw_value(const nest::Position<2>& pos, librandom::RngPtr&) const
     { 
 	double theta_1,theta_2,theta_aux,beta,dist,exp_,angle;
@@ -142,13 +146,14 @@ public:
 
 	theta_1 = angle - orientation_i; theta_2 = angle - orientation_j;
 
-	if (fabs(theta_1) > M_PI_2){ if (theta_1 < 0.0){theta_1 = theta_1 + M_PI;}
-				                       else {theta_1 = theta_1 - M_PI;}}
-	if (fabs(theta_2) > M_PI_2){ if (theta_2 < 0.0){theta_2 = theta_2 + M_PI;}
-				                       else {theta_2 = theta_2 - M_PI;}}
+  if (theta_1 < - M_PI_2){theta_1 = theta_1 + M_PI;}
+  if (theta_1 > M_PI_2){theta_1 = theta_1 - M_PI;}
+
+  if (theta_2 < - M_PI_2){theta_2 = theta_2 + M_PI;}
+  if (theta_2 > M_PI_2){theta_2 = theta_2 - M_PI;}
 
         
-    	if (fabs(theta_1) > fabs(theta_2)){
+  if (fabs(theta_1) > fabs(theta_2)){
         	theta_aux = theta_2;
         	theta_2 = theta_1;
         	theta_1 = theta_aux;}
@@ -193,28 +198,24 @@ public:
       updateValue<double>(d, "rescale", rescale);
     }
 
-  double euler = exp(1.0);
-  double PI_11_999 = M_PI * 0.08333; // 1/11.999 = 0.08333
-  double PI_1_35 = M_PI * 0.7407;
-  double PI_3 = M_PI * 0.3333;
-  double M_4_PI = M_2_PI * 2; 
-
   double raw_value(const nest::Position<2>& pos,
                    librandom::RngPtr&) const
     { 
 
   double theta_1,theta_2,theta_aux,beta,dist,exp_1,exp_2,angle; 
-
-  double theta_diff = fmin(fabs(orientation_i - orientation_j), M_PI - fabs(orientation_i - orientation_j));
+  double fabs_or_i_or_j = fabs(orientation_i - orientation_j); 
+  double theta_diff = fmin(fabs_or_i_or_j, M_PI - fabs_or_i_or_j);
 
 	angle = atan( pos[1] / pos[0] );
 
 	theta_1 = angle - orientation_i; theta_2 = angle - orientation_j;
 
-	if (fabs(theta_1) > M_PI_2){if (theta_1 > 0.0){theta_1 = theta_1 - M_PI;}
-				  else {theta_1 = theta_1 + M_PI;}}
-	if (fabs(theta_2) > M_PI_2){if (theta_2 > 0.0){theta_2 = theta_2 - M_PI;}
-				  else {theta_2 = theta_2 + M_PI;}}
+  if (theta_1 < - M_PI_2){theta_1 = theta_1 + M_PI;}
+  if (theta_1 > M_PI_2){theta_1 = theta_1 - M_PI;}
+
+  if (theta_2 < - M_PI_2){theta_2 = theta_2 + M_PI;}
+  if (theta_2 > M_PI_2){theta_2 = theta_2 - M_PI;}
+
 
   if (fabs(theta_1) > fabs(theta_2)){
         	theta_aux = theta_2;
@@ -244,7 +245,7 @@ private:
 
 } // namespace mynest
 
-#endif
+#endif 
 
 
 
