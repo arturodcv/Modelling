@@ -23,9 +23,7 @@
  
  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  //
- // Module created by Arturo del Cerro in order to replicate the work shown in 
- //'A Neurodynamical Model of Brightness Induction in V1' by Olivier Penacchio, 
- // Xavier Otazu and Laura Dempere-Marco.
+ // Module created by Arturo del Cerro.
  //
  // This module is GNU General Public License.
  //
@@ -121,33 +119,33 @@ class PlosOne_J: public nest::TopologyParameter
 public:
   PlosOne_J(const DictionaryDatum& d):
     TopologyParameter(d),
-    max_dist_(1.0),
     kappa(1.0),
     orientation_i(0.0),
     orientation_j(0.0),
     rescale(1.0)
     {
-      updateValue<double>(d, "max_dist", max_dist_);
       updateValue<double>(d, "kappa", kappa);
       updateValue<double>(d, "orientation_i", orientation_i);
       updateValue<double>(d, "orientation_j", orientation_j);	
-      updateValue<double>(d, "rescale", rescale);	
+      updateValue<double>(d, "rescale", rescale);
     }
 
+  double euler = exp(1.0)  ; 
+  double PI_2_69 = M_PI * 0.3717; 
+  double PI_1_35 = M_PI * 0.7407;
+  double PI_5_9  = M_PI * 0.1694;
   double raw_value(const nest::Position<2>& pos, librandom::RngPtr&) const
     { 
 	double theta_1,theta_2,theta_aux,beta,dist,exp_,angle;
-        double pi = M_PI; 
-	double euler = exp(1.0);
 
 	angle = atan( pos[1] / pos[0]);
 
 	theta_1 = angle - orientation_i; theta_2 = angle - orientation_j;
 
-	if (fabs(theta_1) > pi/2){ if (theta_1 < 0.0){theta_1 = theta_1 + pi;}
-				   else {theta_1 = theta_1 - pi;}}
-	if (fabs(theta_2) > pi/2){ if (theta_2 < 0.0){theta_2 = theta_2 + pi;}
-				   else {theta_2 = theta_2 - pi;}}
+	if (fabs(theta_1) > M_PI_2){ if (theta_1 < 0.0){theta_1 = theta_1 + M_PI;}
+				                       else {theta_1 = theta_1 - M_PI;}}
+	if (fabs(theta_2) > M_PI_2){ if (theta_2 < 0.0){theta_2 = theta_2 + M_PI;}
+				                       else {theta_2 = theta_2 - M_PI;}}
 
         
     	if (fabs(theta_1) > fabs(theta_2)){
@@ -155,15 +153,16 @@ public:
         	theta_2 = theta_1;
         	theta_1 = theta_aux;}
 
-	beta = 2 * ( fabs(theta_1) + sin ( fabs ( theta_1) + fabs(theta_2 )));
-	dist = sqrt( pow(pos[1],2) + pow(pos[0],2) ) * rescale;
+  double fabs_theta_1 = fabs(theta_1);
+	beta = 2 * ( fabs_theta_1 + sin ( fabs ( theta_1 + theta_2 )));
 
-	if ( (dist > 0.0 && dist <= max_dist_ && beta < pi/2.69) || (
-	   ( (dist > 0.0 && dist <= max_dist_ && beta < pi/1.1) && (fabs(theta_1) < pi/5.9)) && (fabs(theta_2) < pi/5.9) )){
+  dist = sqrt( pos[1]*pos[1] + pos[0]*pos[0] ) * rescale;
 
-         	exp_ = - pow( beta / dist , 2)  - 2 * pow ( beta / dist,7) - pow( dist , 2) / 90;
-		
-		return  kappa * pow( euler , exp_);}
+	if ( (dist > 0.0 && dist <= 10.0 && beta < PI_2_69) || (  
+	   ( (dist > 0.0 && dist <= 10.0 && beta < PI_1_35) && (fabs_theta_1 < PI_5_9 ) && (fabs(theta_2) < PI_5_9 ) ) ) ){ 
+        double dist_1 = 1/dist;
+        exp_ = - beta * dist_1 * beta * dist_1 - 2 * powf ( beta * dist_1,7) - dist * dist * 0.011111; // 1/90 = 0.011111
+		    return  kappa * powf( euler , exp_);}
 
 	else { return 0.0;}
     }
@@ -172,7 +171,7 @@ public:
     { return new PlosOne_J(*this); }
 
 private:
-  double max_dist_,kappa, orientation_i, orientation_j,rescale;
+  double kappa, orientation_i, orientation_j,rescale;
 };
 
 
@@ -183,67 +182,56 @@ class PlosOne_W: public nest::TopologyParameter
 public:
   PlosOne_W(const DictionaryDatum& d):
     TopologyParameter(d),
-    max_dist_(1.0),
     orientation_i(0.0),
     orientation_j(0.0),
     kappa(1.0),
     rescale(1.0)
     {
-      updateValue<double>(d, "max_dist", max_dist_);
       updateValue<double>(d, "orientation_i", orientation_i);
       updateValue<double>(d, "orientation_j", orientation_j);
       updateValue<double>(d, "kappa", kappa);
       updateValue<double>(d, "rescale", rescale);
     }
 
+  double euler = exp(1.0);
+  double PI_11_999 = M_PI * 0.08333; // 1/11.999 = 0.08333
+  double PI_1_35 = M_PI * 0.7407;
+  double PI_3 = M_PI * 0.3333;
+  double M_4_PI = M_2_PI * 2; 
 
   double raw_value(const nest::Position<2>& pos,
                    librandom::RngPtr&) const
     { 
-	double theta_1,theta_2,theta_aux,beta,dist,exp_1,exp_2,angle,orientation_1,orientation_2;
-        double pi = M_PI;
-	double euler = exp(1.0);
 
-  	orientation_1 = orientation_i;
-	orientation_2 = orientation_j;
-	
-	if (orientation_1 < 0.0){orientation_1 = orientation_1 + pi;}
-	if (orientation_2 < 0.0){orientation_2 = orientation_2 + pi;}
+  double theta_1,theta_2,theta_aux,beta,dist,exp_1,exp_2,angle; 
 
-	double theta_diff = fabs(orientation_1 - orientation_2);
-	if (orientation_1 > pi/2 ){
-		if (fabs(orientation_1 - orientation_2 - pi) < theta_diff){ theta_diff = fabs(orientation_1 - orientation_2 - pi);}
-	}
-	if (orientation_2 > pi/2 ){
-		if (fabs(orientation_1 - orientation_2 + pi) < theta_diff){ theta_diff = fabs(orientation_1 - orientation_2 + pi);}
-	}
+  double theta_diff = fmin(fabs(orientation_i - orientation_j), M_PI - fabs(orientation_i - orientation_j));
 
-	angle = atan(pos[1]/pos[0]);
+	angle = atan( pos[1] / pos[0] );
 
 	theta_1 = angle - orientation_i; theta_2 = angle - orientation_j;
 
-	if (fabs(theta_1) > pi/2){if (theta_1 > 0.0){theta_1 = theta_1 - pi;}
-				  else {theta_1 = theta_1 + pi;}}
-	if (fabs(theta_2) > pi/2){if (theta_2 > 0.0){theta_2 = theta_2 - pi;}
-				  else {theta_2 = theta_2 + pi;}}
+	if (fabs(theta_1) > M_PI_2){if (theta_1 > 0.0){theta_1 = theta_1 - M_PI;}
+				  else {theta_1 = theta_1 + M_PI;}}
+	if (fabs(theta_2) > M_PI_2){if (theta_2 > 0.0){theta_2 = theta_2 - M_PI;}
+				  else {theta_2 = theta_2 + M_PI;}}
 
   if (fabs(theta_1) > fabs(theta_2)){
         	theta_aux = theta_2;
         	theta_2 = theta_1;
         	theta_1 = theta_aux;
 	}
-	
-	beta = 2*(fabs(theta_1) + sin(fabs(theta_1)+fabs(theta_2)));
+  double fabs_theta_1 = fabs(theta_1);
+  beta = 2*(fabs_theta_1 + sin(fabs(theta_1 + theta_2)));
 
-	dist = sqrt(pow(pos[1],2) + pow(pos[0],2)) * rescale ;
+  dist = sqrt( pos[1] * pos[1] + pos[0] * pos[0] ) * rescale ;
 
-	if ((dist < 0.001 || dist >= max_dist_ || beta < pi / 1.1) || fabs(theta_diff) >= pi/3 || fabs(theta_1) < pi / 11.999){
+	if ((dist < 0.001 || dist >= 10.0 || beta < PI_1_35) || fabs(theta_diff) >= PI_3 || fabs_theta_1 < PI_11_999){ 
 		return 0.0;}
 	else {
 		exp_1 = -0.4 * pow( beta / dist , 1.5);
-        	exp_2 = -pow( theta_diff / (pi / 4) , 1.5);
-	
-        	return kappa * ( 1 - pow( euler , exp_1) ) * pow( euler , exp_2);
+ 	  exp_2 = -powf( theta_diff * M_4_PI , 1.5);
+    return kappa * ( 1 - powf( euler , exp_1) ) * powf( euler , exp_2);
 	}
     }
 
@@ -251,10 +239,8 @@ public:
     { return new PlosOne_W(*this); }
 
 private:
-  double max_dist_, orientation_i, orientation_j, kappa,rescale;
+  double orientation_i, orientation_j, kappa,rescale;
 };
-
-
 
 } // namespace mynest
 
