@@ -32,9 +32,10 @@ complementary_time_list = list(set(full_times) - set(unique_times))
 eeg = get_eeg(times, complementary_time_list, 'total', '_', path)
 get_frequencies(eeg,'total','_', path)
 
+#quit()
 
-
-orientations = [0.0,45.0,90.0,135.0]
+#orientations = [0.0,45.0,90.0,135.0]
+orientations = [i*180/num_orientations for i in range(0,num_orientations)]
 neuron_types = ['l_exc', 'l_inh']
 
 for orientation_to_read in orientations:

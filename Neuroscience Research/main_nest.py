@@ -22,8 +22,6 @@ from nest_values import *
 from funciones   import *
 
 
-
-
 ########################################################### Nest ###################################################################
 
 nest.ResetKernel()
@@ -46,7 +44,10 @@ create_folder(positions_path); remove_contents(positions_path)
 t = time.time()
 gabors_to_nest = full_img_filtering(images_to_simulate,num_orientations)
 gabors_time = time.time() - t
-#save_gabors(gabors_to_nest, images_to_simulate,num_orientations);       quit()
+
+if get_output_gabors:
+    save_gabors(gabors_to_nest, images_to_simulate,num_orientations);       
+    quit()
 
 ############################################################  Connectivity ######################################################################
 
@@ -57,7 +58,7 @@ print("All layers succesfully connected!")
 
 
 ############################################################## Simulation #######################################################################
- 
+
 t = time.time()
 #print("Lets simulate!")
 for i in range(0,num_images_to_simulate):
@@ -79,5 +80,7 @@ save_dict(spike_detectors,'to_record_sd')
 for layer,j in zip(layers_to_record,range(0,len(layers_to_record))):
     tp.DumpLayerNodes(layers_to_record[layer],'positions-'+str(layer))
     
-print("Times: \n Building architecture: " + str(conn_time) + "\n Image processing: " + str(gabors_time) + "\n Simulation: " + str(sim_time))
+print("Times: \n\n     Building architecture: " + str(conn_time) + "\n     Image processing: " + str(gabors_time) + "\n     Simulation: " + str(sim_time))
+print("\n")
+
 

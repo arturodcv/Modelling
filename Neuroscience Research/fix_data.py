@@ -43,7 +43,7 @@ positions.to_pickle('positions_.pkl')
 
 #########################
 
-dist =  1/10
+dist =  0.1
 select = radius
 d = dist*select
 
@@ -85,11 +85,6 @@ for layer, spk in zip(layers_to_record,spike_detectors):
    
     data.to_pickle(df_folder + '/data_' + str(layer) +'.pkl')
     
-    
-    #data = data.sort_values(by=['Time'])
-    #data = data[data['Time'] > 50.0]
-    
-    #print('Numero de spikes ' +str(layer)+': ' + str(len(data)) + '\n')
     lengths.append(len(data))
     del(data)
 
@@ -104,7 +99,7 @@ print("     exc          inh          \n   -----------------------------")
 for i in range(0,int(len(lengths)/2)):
     print('   ' + str(lengths[2*i]) + '       ' + str(lengths[2*i+1]))
 
-print("Total number of spikes: ", sum(lengths))
+print("Total number of spikes: ", sum(lengths)); print("\n")
 
 
 

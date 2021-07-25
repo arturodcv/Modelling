@@ -37,19 +37,19 @@ def remove_contents(path_name):
             elif os.path.isdir(file_path):
                 shutil.rmtree(file_path)
         except Exception as e:
-            #print('Failed to delete %s. Reason: %s' % (file_path, e))
             continue
 
 ##################################################### Gabor ####################################################################
 
 def gabor_filter(K_size,Lambda, Theta, Sigma, Gamma, Psi):
-    gabor = np.zeros((K_size, K_size), dtype=np.float32) 
-    for x in range(K_size):
-        for y in range(K_size):
-            dx = x - K_size // 2; dy = y - K_size // 2
-            x_ = np.cos(Theta) * dx + np.sin(Theta) * dy; y_ = -np.sin(Theta) * dx + np.cos(Theta) * dy
-            gabor[x, y] = np.exp(-(x_**2 + Gamma**2 * y_**2) / (2 * Sigma**2)) * np.cos(2*np.pi*x_/Lambda + Psi)
+    sigma_x = Sigma
+    sigma_y = float(Sigma) / Gamma
+    (y, x) = np.meshgrid(np.arange(- K_size // 2,K_size // 2), np.arange(-K_size // 2,K_size // 2))
+    x_ = np.cos(Theta) * x + np.sin(Theta) * y; 
+    y_ = -np.sin(Theta) * x + np.cos(Theta) * y;
+    gabor = np.exp(-0.5 * (x_**2 / sigma_x**2 + y_**2 / sigma_y**2)) * np.cos(2*np.pi*x_/Lambda + Psi)
     return gabor
+
 
 def apply_filter(gray_img, K_size, Lambda, Theta, Sigma, Gamma, Psi):
     gray = np.pad(gray_img, (K_size//2, K_size//2), 'edge')
@@ -79,7 +79,7 @@ def main_img(img,orientation, max_to_rescale):
     img = cv2.imread(img)
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
     output_gabor = gabor(gray_img,orientation) 
-    output_gabor = np.multiply(output_gabor,1/(max_to_rescale/100))
+    output_gabor = np.multiply(output_gabor,1/(max_to_rescale/120))
     
     if cut_pixels != 0:
         output_gabor = output_gabor[cut_pixels:-cut_pixels,cut_pixels:-cut_pixels]
@@ -89,7 +89,7 @@ def main_img(img,orientation, max_to_rescale):
     
 def full_img_filtering(images_to_simulate,num_orientations):
     gabors_dict = {}
-    max_gabor = (gabor_filter(K_size = K_size, Lambda = Lambda, Theta = 90 * math.pi/ 180, Sigma = Sigma, Gamma = 0.0, Psi = Psi) + 1) * 255 / 2
+    max_gabor = (gabor_filter(K_size = K_size, Lambda = Lambda, Theta = 90 * math.pi/ 180, Sigma = Sigma, Gamma = 0.00001, Psi = Psi) + 1) * 255 / 2
     max_gabor = np.max(gabor(max_gabor,90))
 
     for i in range(0,len(images_to_simulate)):
@@ -140,10 +140,11 @@ def main_all_orientations(num_orientations):
             or_j = j*180/num_orientations;
             l_exc_i = lyrs['orientation_'+str(or_i)]['l_exc_'+str(or_i)]
             l_inh_i = lyrs['orientation_'+str(or_i)]['l_inh_'+str(or_i)]
-            l_exc_j = lyrs['orientation_'+str(or_j)]['l_exc_'+str(or_j)]
+            l_exc_j = lyrs['orientation_'+str(or_j)]['l_exc_'+str(or_j)] 
             l_inh_j = lyrs['orientation_'+str(or_j)]['l_inh_'+str(or_j)]
-                
-            main_lat_connections(l_exc_i,l_exc_j,l_inh_i,l_inh_j,i*math.pi/num_orientations,j*math.pi/num_orientations)
+            
+            if lateral_connections:   
+                main_lat_connections(l_exc_i,l_exc_j,l_inh_i,l_inh_j,i*math.pi/num_orientations,j*math.pi/num_orientations)
     return lyrs, poiss
  
 
@@ -160,7 +161,6 @@ def set_poisson_values(img_dict, poiss_layers,num_orientations):
         l_poiss_exc = list(poiss_layers['orientation_'+str(orientation)]['l_poiss_exc_' + str(orientation)])
         l_poiss_inh = list(poiss_layers['orientation_'+str(orientation)]['l_poiss_inh_' + str(orientation)])
         
-        
         nest.SetStatus(nest.GetNodes(l_poiss_exc)[0],'rate', fixed_list_exc)
         nest.SetStatus(nest.GetNodes(l_poiss_inh)[0],'rate', fixed_list_inh)
 
@@ -171,12 +171,12 @@ def create_layer(rows,columns,extent,elements,neurons_per_column):
 
 ########################################################### Connetivity ##################################################################
 
-def create_lat_exc(kernel_type,kappa,orientation_i,orientation_j):
-    return  {'connection_type': 'convergent',    
-             'mask': {'circular': {'radius': rescale/2.35}},
+def create_lat_exc(kernel_type,kappa,orientation_i,orientation_j, weight_type):
+    return  {'connection_type': 'convergent',     
+             'mask': {'circular': {'radius': radius_lat}}, 
              'kernel': {kernel_type: {'kappa': kappa,'orientation_i': orientation_i, 'orientation_j': orientation_j, 'rescale': rescale }},
-             'weights': default_synapse_weight_exc * 0.08, 
-             'delays': {'linear':{'c':delay_exc_min,'a':slowness_exc}}, 
+             'weights': weight_type, 
+             'delays': {'linear':{'c':delay_exc_min_large,'a':slowness_exc_large}}, 
              'synapse_model': syn_model_exc,
              'allow_autapses': allow_autapses, 'allow_multapses': allow_multapses
             }     
@@ -191,13 +191,15 @@ def main_self_connections(l_exc,l_inh,sd_exc,sd_inh,l_poiss_exc,l_poiss_inh, sel
     nest.Connect(leaves_inh, sd_inh)
 
     
-def main_lat_connections(l_exc_i,l_exc_j,l_inh_i,l_inh_j,orientation_i,orientation_j): 
-    tp.ConnectLayers(l_exc_i, l_exc_j, short_range_exc_exc)
+def main_lat_connections(l_exc_i,l_exc_j,l_inh_i,l_inh_j,orientation_i,orientation_j):
+    if orientation_i == orientation_j:
+        tp.ConnectLayers(l_exc_i, l_inh_j, short_range_exc_inh)  
+        tp.ConnectLayers(l_exc_i, l_exc_j, short_range_exc_exc)
+       
     tp.ConnectLayers(l_inh_i, l_inh_j, short_range_inh_inh) 
-    tp.ConnectLayers(l_exc_i, l_inh_j, short_range_exc_inh) 
     tp.ConnectLayers(l_inh_i, l_exc_j, short_range_inh_exc)
-    tp.ConnectLayers(l_exc_i, l_exc_j, create_lat_exc('PlosOne_J',kappa_j,orientation_i,orientation_j))
-    tp.ConnectLayers(l_exc_i, l_inh_j, create_lat_exc('PlosOne_W',kappa_w,orientation_i,orientation_j))
+    tp.ConnectLayers(l_exc_i, l_exc_j, create_lat_exc('PlosOne_J',kappa_j,orientation_i,orientation_j, weight_large_range_exc_exc))
+    tp.ConnectLayers(l_exc_i, l_inh_j, create_lat_exc('PlosOne_W',kappa_w,orientation_i,orientation_j, weight_large_range_exc_inh))
 
     
 ############################################################## Data ###############################################################
@@ -229,8 +231,8 @@ def generate_frames(data):
     times = data['Time'].tolist() 
     times = (np.around(data['Time'],window_time)).tolist()
     actual_time = times[0]
-    x_pos = ( np.around( (data['x_pos'] + extent[0] / 2) * 10 - 0.5)).astype(int).tolist()
-    y_pos = ( np.around( (data['y_pos'] + extent[0] / 2) * 10 - 0.5)).astype(int).tolist()
+    x_pos = ( np.around( (data['x_pos'] + extent[0] * 0.5) * 10 - 0.5)).astype(int).tolist()
+    y_pos = ( np.around( (data['y_pos'] + extent[0] * 0.5) * 10 - 0.5)).astype(int).tolist()
 
     num_spikes = len(data)
     array = [0] * x_cortex_size * y_cortex_size
@@ -315,24 +317,22 @@ def get_eeg(times, complementary_time_list, orientation_to_read, exc_or_inh, pat
     eeg.update({i:0 for i in complementary_time_list})
     eeg = list(OrderedDict(sorted(eeg.items())).values())
 
-    plt.plot(eeg); plt.title('eeg');
+    plt.plot(eeg); plt.title('EEG signal'); plt.xlabel("Time (ms)"); plt.ylabel("Number of spikes")
     plt.savefig(path + '/eeg_' + str(orientation_to_read) + '_' + str(exc_or_inh)+'_.png')
     plt.close('all')
     #print("Eeg created succesfully!")
     return eeg
     
 def get_frequencies(eeg,orientation_to_read,exc_or_inh, path):
-    #frequencies = np.abs(rfft(np.asarray(eeg[:-1])))
-    freqs, density = scipy.signal.periodogram(eeg, scaling = 'spectrum')
-    #peaks, values = find_peaks(frequencies, height= 10, distance = 10); 
-    peaks, values = find_peaks(density, height= 10, distance = 10); 
-    print("Node    Narrowband      Broadband[", broadband_initial , ',' , broadband_end, ']')
-    idx = (- values['peak_heights']).argsort()[:num_max_frequencies]
-    for node,peak_value in zip(peaks[idx].tolist(), values['peak_heights'][idx].tolist()):
-        #print(node,'     ',np.around(peak_value,2), '     ',np.around(sum(frequencies[broadband_initial:broadband_end]),2))
-        print(node,'     ',np.around(peak_value,2), '     ',np.around(sum(density[broadband_initial:broadband_end]),2))
 
-    #plt.plot(frequencies[1:-5]); plt.xlabel("Frequency (Hz)"); plt.ylabel("Frequency Domain (Spectrum) Magnitude")
+    freqs, density = scipy.signal.periodogram(eeg[eeg_from:], scaling = 'spectrum')
+    peaks, values = find_peaks(density, height= 10, distance = 10); 
+    idx = (- values['peak_heights']).argsort()[:num_max_frequencies]
+    
+    for node,peak_value in zip(peaks[idx].tolist(), values['peak_heights'][idx].tolist()):
+        print("Node    Narrowband      Broadband[", broadband_initial , ',' , max(min(node + 10,100), 60), ']')
+        print(node,'     ',np.around(peak_value,2), '     ',np.around(sum(density[broadband_initial:max(min(node + 10,100), 60)]),2))
+
     plt.plot(density); plt.xlabel("Frequency (Hz)"); plt.ylabel("Frequency Domain (Spectrum) Magnitude")
     plt.grid(); plt.savefig(path + '/frequencies_' + str(orientation_to_read) + '_' + str(exc_or_inh)+'_.png')
     plt.close('all')
